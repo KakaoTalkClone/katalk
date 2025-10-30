@@ -1,6 +1,8 @@
+// lib/features/chats/screens/chats_page.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../widgets/chat_list_view.dart';
+import '../data/dummy_chats.dart';
+import '../widgets/chat_list_item.dart';
 
 class ChatsPage extends StatelessWidget {
   const ChatsPage({super.key});
@@ -50,7 +52,34 @@ class ChatsPage extends StatelessWidget {
           const SizedBox(width: 6),
         ],
       ),
-      body: const ChatListView(), // ✅ 리스트 붙임
+
+      // ✅ 하나의 ListView에서 0번째만 배너, 나머지는 채팅 아이템
+      body: ListView.builder(
+        itemCount: kDummyChats.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            // 상단 배너
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/ad.jpg',
+                  fit: BoxFit.cover,
+                ),
+              ),
+            );
+          }
+          final c = kDummyChats[index - 1]; // 채팅 데이터는 -1 오프셋
+          return ChatListItem(
+            avatar: c['avatar'] ?? '',
+            name: c['name'] ?? '',
+            message: c['message'] ?? '',
+            time: c['time'] ?? '',
+            onTap: () {},
+          );
+        },
+      ),
     );
   }
 }

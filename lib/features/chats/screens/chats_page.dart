@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart'; // ← 상대경로
+import '../../../core/constants/app_colors.dart';
 
 class ChatsPage extends StatelessWidget {
   const ChatsPage({super.key});
@@ -10,21 +10,22 @@ class ChatsPage extends StatelessWidget {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: AppColors.bg,
-        title: const Text(
-          '채팅',
-          style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w600),
-        ),
+        surfaceTintColor: Colors.transparent,
+        title: const Text('채팅',
+            style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w600)),
         iconTheme: const IconThemeData(color: AppColors.text),
+        actions: const [
+          Icon(Icons.search, color: AppColors.text),
+          SizedBox(width: 8),
+          Icon(Icons.notifications_none_rounded, color: AppColors.text),
+          SizedBox(width: 8),
+          Icon(Icons.settings_outlined, color: AppColors.text),
+          SizedBox(width: 8),
+        ],
       ),
-      floatingActionButton: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.kakaoYellow,
-          foregroundColor: AppColors.text,
-        ),
-        onPressed: () {},
-        child: const Text('새 채팅'),
+      body: const Center(
+        child: Text('채팅 리스트 영역', style: TextStyle(color: AppColors.text)),
       ),
-      body: const Center(child: Text('...')),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../data/dummy_chats.dart';
 import '../widgets/chat_list_item.dart';
+import '../widgets/new_chat_sheet.dart';
 
 class ChatsPage extends StatelessWidget {
   const ChatsPage({super.key});
@@ -35,7 +36,30 @@ class ChatsPage extends StatelessWidget {
           ),
           gap,
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              showGeneralDialog(
+                context: context,
+                barrierLabel: 'new-chat',
+                barrierDismissible: true,
+                barrierColor: Colors.transparent, // 아래 영역 투명 (뒤 화면 그대로 보임)
+                transitionDuration: const Duration(milliseconds: 220),
+                pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+                transitionBuilder: (_, animation, __, ___) {
+                  final offset = Tween<Offset>(
+                    begin: const Offset(0, -1), // 위에서 시작
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ));
+                  return SlideTransition(
+                    position: offset,
+                    child: const NewChatSheet(),
+                  );
+                },
+              );
+            },
+
             tooltip: '새 대화',
             icon: const Icon(Icons.add_comment_outlined, color: AppColors.text),
             visualDensity: VisualDensity.compact,
@@ -52,13 +76,10 @@ class ChatsPage extends StatelessWidget {
           const SizedBox(width: 6),
         ],
       ),
-
-      // ✅ 하나의 ListView에서 0번째만 배너, 나머지는 채팅 아이템
       body: ListView.builder(
         itemCount: kDummyChats.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
-            // 상단 배너
             return Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
               child: ClipRRect(
@@ -70,7 +91,7 @@ class ChatsPage extends StatelessWidget {
               ),
             );
           }
-          final c = kDummyChats[index - 1]; // 채팅 데이터는 -1 오프셋
+          final c = kDummyChats[index - 1];
           return ChatListItem(
             avatar: c['avatar'] ?? '',
             name: c['name'] ?? '',

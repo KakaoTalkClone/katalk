@@ -7,7 +7,6 @@ const kDummyFriends = [
   {"name": "강병준", "avatar": "assets/images/avatars/avatar1.jpeg"},
   {"name": "강성근", "avatar": "assets/images/avatars/avatar2.jpeg"},
   {"name": "강유진", "avatar": "assets/images/avatars/avatar1.jpeg"},
-  {"name": "강초현", "avatar": "assets/images/avatars/avatar2.jpeg"},
   {"name": "강호성", "avatar": "assets/images/avatars/avatar1.jpeg"},
   {"name": "강민수", "avatar": "assets/images/avatars/avatar2.jpeg"},
 ];

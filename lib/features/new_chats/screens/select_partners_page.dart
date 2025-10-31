@@ -30,14 +30,19 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
       body: Column(
         children: [
           SizedBox(height: topPad),
-          _TopBar(
+         _TopBar(
             onClose: () => Navigator.pop(context),
             canConfirm: _selected.isNotEmpty,
             onConfirm: () {
-              final picked = _selected.map((i) => filtered[i].value).toList();
-              Navigator.pop(context, picked);
+                // 선택 로직은 지금 무시하고, 단순 진입만
+                Navigator.pushNamed(
+                context,
+                '/chat/room',
+                arguments: {'title': '새로운 채팅'}, // 필요하면 선택한 친구 이름으로 교체 가능
+                );
             },
-          ),
+            ),
+
           const SizedBox(height: 12),
           _SearchField(onChanged: (v) => setState(() => _q = v.trim())),
           const SizedBox(height: 6),

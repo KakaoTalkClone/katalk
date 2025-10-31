@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/k_bottom_nav.dart';
-import '../friends/screens/friends_page.dart';
+import '../friends/screens/friends_screen.dart';
 import '../chats/screens/chats_page.dart';
 
 class HomeTabs extends StatefulWidget {
@@ -35,7 +35,7 @@ class _HomeTabsState extends State<HomeTabs> {
         onPageChanged: (i) => setState(() => _index = i),
         // 스와이프 허용(원하면 NeverScrollableScrollPhysics 로 막을 수 있음)
         children: const [
-          FriendsPage(),      // 0
+          FriendsScreen(),      // 0
           ChatsPage(),        // 1
           _PlaceholderTab(label: '오픈채팅'), // 2
           _PlaceholderTab(label: '쇼핑'),     // 3

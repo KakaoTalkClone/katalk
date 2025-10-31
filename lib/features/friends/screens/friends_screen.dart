@@ -59,7 +59,7 @@ class FriendsScreen extends StatelessWidget {
           style: TextStyle(fontSize: 14, color: Colors.grey),
         ),
         onTap: () {
-          Navigator.pushNamed(context, '/friends/profile');
+          Navigator.pushNamed(context, '/friends/profile', arguments: {'isMyProfile': true});
         },
       ),
     );
@@ -95,7 +95,7 @@ class FriendsScreen extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           onTap: () {
-            Navigator.pushNamed(context, '/friends/profile');
+            Navigator.pushNamed(context, '/friends/profile', arguments: {'isMyProfile': false});
           },
         ),
         ListTile(
@@ -117,7 +117,7 @@ class FriendsScreen extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           onTap: () {
-            Navigator.pushNamed(context, '/friends/profile');
+            Navigator.pushNamed(context, '/friends/profile', arguments: {'isMyProfile': false});
           },
         ),
       ],

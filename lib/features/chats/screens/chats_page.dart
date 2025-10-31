@@ -36,12 +36,20 @@ class ChatsPage extends StatelessWidget {
           gap,
           IconButton(
             onPressed: () {
-              showModalBottomSheet(
+              showGeneralDialog(
                 context: context,
-                isScrollControlled: false,
-                backgroundColor: Colors.transparent,
+                barrierDismissible: true,
+                barrierLabel: 'dismiss',
                 barrierColor: Colors.black.withOpacity(0.55),
-                builder: (_) => const NewChatSheet(),
+                transitionDuration: const Duration(milliseconds: 220),
+                pageBuilder: (_, __, ___) => const NewChatSheet(),
+                transitionBuilder: (_, anim, __, child) {
+                  final offset = Tween<Offset>(
+                    begin: const Offset(0, -1),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+                  return SlideTransition(position: offset, child: child);
+                },
               );
             },
             tooltip: '새 대화',
@@ -77,7 +85,6 @@ class ChatsPage extends StatelessWidget {
           }
           final c = kDummyChats[index - 1];
           final name = c['name'] ?? '';
-
           return ChatListItem(
             avatar: c['avatar'] ?? '',
             name: name,

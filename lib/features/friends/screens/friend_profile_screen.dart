@@ -25,17 +25,13 @@ class FriendProfileScreen extends StatelessWidget {
             icon: const Icon(Icons.qr_code, color: Colors.white),
             onPressed: () {},
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
         ],
       ),
       extendBodyBehindAppBar: true,
       body: Column(
         children: [
           SizedBox(
-            height: 400,
+            height: MediaQuery.of(context).size.height * 0.5,
             child: Container(), // Empty container to push content down
           ),
           const SizedBox(height: 20),
@@ -50,7 +46,7 @@ class FriendProfileScreen extends StatelessWidget {
               fit: BoxFit.cover,
             ),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.05),
           Text(
             isMyProfile ? '내 이름' : '친구 이름',
             style: const TextStyle(
@@ -72,40 +68,64 @@ class FriendProfileScreen extends StatelessWidget {
             thickness: 0.5,
           ),
           const SizedBox(height: 20),
-          _buildActionButtons(),
+          _buildActionButtons(context),
           const SizedBox(height: 30),
         ],
       ),
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
     if (isMyProfile) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildIconButton(Icons.chat_bubble, '나와의 채팅'),
-          _buildIconButton(Icons.edit, '프로필 편집'),
+          _buildIconButton(
+            icon: Icons.chat_bubble,
+            label: '나와의 채팅',
+            onPressed: () {
+              Navigator.of(context).pushNamed('/chat/room');
+            },
+          ),
+          _buildIconButton(icon: Icons.edit, label: '프로필 편집', onPressed: () {}),
         ],
       );
     } else {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildIconButton(Icons.chat_bubble, '1:1 채팅'),
-          _buildIconButton(Icons.call, '통화하기'),
+          _buildIconButton(
+            icon: Icons.chat_bubble,
+            label: '1:1 채팅',
+            onPressed: () {
+              Navigator.of(context).pushNamed('/chat/room');
+            },
+          ),
+          _buildIconButton(icon: Icons.call, label: '통화하기', onPressed: () {}),
         ],
       );
     }
   }
 
-  Widget _buildIconButton(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, size: 30, color: Colors.white),
-        const SizedBox(height: 5),
-        Text(label, style: const TextStyle(color: Colors.white)),
-      ],
+  Widget _buildIconButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 30, color: Colors.white),
+            const SizedBox(height: 5),
+            Text(label, style: const TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
     );
   }
 }

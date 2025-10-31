@@ -17,14 +17,7 @@ class FriendsScreen extends StatelessWidget {
             onPressed: () {},
             icon: const Icon(Icons.person_add_alt_1_outlined),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.music_note_outlined),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.settings_outlined),
-          ),
+
         ],
       ),
       body: ListView(

@@ -1,4 +1,3 @@
-// lib/features/chats/screens/chats_page.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../data/dummy_chats.dart';
@@ -37,29 +36,14 @@ class ChatsPage extends StatelessWidget {
           gap,
           IconButton(
             onPressed: () {
-              showGeneralDialog(
+              showModalBottomSheet(
                 context: context,
-                barrierLabel: 'new-chat',
-                barrierDismissible: true,
-                barrierColor: Colors.transparent, // 아래 영역 투명 (뒤 화면 그대로 보임)
-                transitionDuration: const Duration(milliseconds: 220),
-                pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-                transitionBuilder: (_, animation, __, ___) {
-                  final offset = Tween<Offset>(
-                    begin: const Offset(0, -1), // 위에서 시작
-                    end: Offset.zero,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ));
-                  return SlideTransition(
-                    position: offset,
-                    child: const NewChatSheet(),
-                  );
-                },
+                isScrollControlled: false,
+                backgroundColor: Colors.transparent,
+                barrierColor: Colors.black.withOpacity(0.55),
+                builder: (_) => const NewChatSheet(),
               );
             },
-
             tooltip: '새 대화',
             icon: const Icon(Icons.add_comment_outlined, color: AppColors.text),
             visualDensity: VisualDensity.compact,
@@ -92,12 +76,20 @@ class ChatsPage extends StatelessWidget {
             );
           }
           final c = kDummyChats[index - 1];
+          final name = c['name'] ?? '';
+
           return ChatListItem(
             avatar: c['avatar'] ?? '',
-            name: c['name'] ?? '',
+            name: name,
             message: c['message'] ?? '',
             time: c['time'] ?? '',
-            onTap: () {},
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/chat/room',
+                arguments: {'title': name},
+              );
+            },
           );
         },
       ),

@@ -1,7 +1,7 @@
 // lib/features/new_chats/screens/select_partners_page.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../data/dummy_friends.dart';
+import '../../../core/constants/data/dummy_friends.dart';
 import '../widgets/friend_list_item.dart';
 
 class SelectPartnersPage extends StatefulWidget {

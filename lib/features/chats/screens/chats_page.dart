@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../data/dummy_chats.dart';
+import '../../../core/constants/data/dummy_chats.dart';
 import '../widgets/chat_list_item.dart';
 import '../widgets/new_chat_sheet.dart';
 
@@ -47,7 +47,12 @@ class ChatsPage extends StatelessWidget {
                   final offset = Tween<Offset>(
                     begin: const Offset(0, -1),
                     end: Offset.zero,
-                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+                  ).animate(
+                    CurvedAnimation(
+                      parent: anim,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  );
                   return SlideTransition(position: offset, child: child);
                 },
               );
@@ -83,8 +88,10 @@ class ChatsPage extends StatelessWidget {
               ),
             );
           }
+
           final c = kDummyChats[index - 1];
           final name = c['name'] ?? '';
+
           return ChatListItem(
             avatar: c['avatar'] ?? '',
             name: name,
@@ -94,7 +101,9 @@ class ChatsPage extends StatelessWidget {
               Navigator.pushNamed(
                 context,
                 '/chat/room',
-                arguments: {'title': name},
+                arguments: {
+                  'title': name, // ChatRoomPage에서 kDummyChatMessages[name] 조회용
+                },
               );
             },
           );

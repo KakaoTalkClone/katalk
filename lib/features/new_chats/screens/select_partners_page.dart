@@ -1,7 +1,7 @@
 // lib/features/new_chats/screens/select_partners_page.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../data/dummy_friends.dart';
+import '../../../core/constants/data/server.dart';
 import '../widgets/friend_list_item.dart';
 
 class SelectPartnersPage extends StatefulWidget {
@@ -14,12 +14,14 @@ class SelectPartnersPage extends StatefulWidget {
 class _SelectPartnersPageState extends State<SelectPartnersPage> {
   final Set<int> _selected = {};
   String _q = '';
+  final _server = Server(); // New: create server instance
 
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
 
-    final filtered = kDummyFriends
+    final filtered = _server
+        .getFriendsForNewChat() // New: fetch from server
         .asMap()
         .entries
         .where((e) => _q.isEmpty || e.value['name']!.toString().contains(_q))

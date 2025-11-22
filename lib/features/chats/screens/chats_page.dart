@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../data/dummy_chats.dart';
+import '../../../core/constants/data/server.dart';
 import '../widgets/chat_list_item.dart';
 import '../widgets/new_chat_sheet.dart';
 
@@ -10,6 +10,8 @@ class ChatsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const gap = SizedBox(width: 14);
+    final server = Server();
+    final chatRooms = server.getChatRoomList();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -69,7 +71,7 @@ class ChatsPage extends StatelessWidget {
         ],
       ),
       body: ListView.builder(
-        itemCount: kDummyChats.length + 1,
+        itemCount: chatRooms.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
             return Padding(
@@ -83,13 +85,15 @@ class ChatsPage extends StatelessWidget {
               ),
             );
           }
-          final c = kDummyChats[index - 1];
-          final name = c['name'] ?? '';
+          final c = chatRooms[index - 1];
+          final name = c['name'] as String? ?? '';
+          final unreadCount = c['unreadCount'] as int? ?? 0;
           return ChatListItem(
-            avatar: c['avatar'] ?? '',
+            avatar: c['avatarUrl'] as String? ?? '',
             name: name,
-            message: c['message'] ?? '',
-            time: c['time'] ?? '',
+            message: c['lastMessage'] as String? ?? '',
+            time: c['lastMessageTime'] as String? ?? '',
+            unreadCount: unreadCount,
             onTap: () {
               Navigator.pushNamed(
                 context,

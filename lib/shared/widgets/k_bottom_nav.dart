@@ -1,7 +1,7 @@
 // lib/shared/widgets/k_bottom_nav.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+// import '../../core/constants/app_colors.dart';
 
 const _kNavIconBase = Color(0xFF696B6D);     
 const _kNavIconSelected = Color(0xFFE3E9F0);

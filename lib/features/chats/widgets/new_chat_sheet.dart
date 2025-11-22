@@ -11,11 +11,11 @@ class NewChatSheet extends StatelessWidget {
     const sheetBg = Color(0xFF111113);
     final topPad = MediaQuery.of(context).padding.top;
 
-    void goSelect() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SelectPartnersPage()),
-      );
-    }
+    // void goSelect() {
+    //   Navigator.of(context).push(
+    //     MaterialPageRoute(builder: (_) => const SelectPartnersPage()),
+    //   );
+    // }
 
     return Material(
       color: Colors.transparent,

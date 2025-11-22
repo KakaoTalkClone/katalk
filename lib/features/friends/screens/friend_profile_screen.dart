@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 
 class FriendProfileScreen extends StatelessWidget {
   final bool isMyProfile;
+  final Map<String, String>? friendData; // Add friendData property
 
-  const FriendProfileScreen({super.key, required this.isMyProfile});
+  const FriendProfileScreen({super.key, required this.isMyProfile, this.friendData}); // Update constructor
 
   @override
   Widget build(BuildContext context) {
+    // Determine the data to display based on isMyProfile or friendData
+    final String name = isMyProfile ? '내 이름' : (friendData?['name'] ?? '친구 이름');
+    final String avatarUrl = isMyProfile
+        ? 'assets/images/avatars/avatar1.jpeg'
+        : (friendData?['avatar'] ?? 'assets/images/avatars/avatar2.jpeg');
+    final String statusMessage =
+        isMyProfile ? '상태 메시지' : (friendData?['statusMessage'] ?? '상태 메시지 없음');
+
     return Scaffold(
       backgroundColor: const Color(0xFFB1C1D7),
       appBar: AppBar(
@@ -38,9 +47,7 @@ class FriendProfileScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(35.0),
             child: Image.asset(
-              isMyProfile
-                  ? 'assets/images/avatars/avatar1.jpeg'
-                  : 'assets/images/avatars/avatar2.jpeg',
+              avatarUrl, // Use dynamic avatarUrl
               width: 100,
               height: 100,
               fit: BoxFit.cover,
@@ -48,7 +55,7 @@ class FriendProfileScreen extends StatelessWidget {
           ),
           SizedBox(height: MediaQuery.of(context).size.height * 0.05),
           Text(
-            isMyProfile ? '내 이름' : '친구 이름',
+            name, // Use dynamic name
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -56,9 +63,9 @@ class FriendProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 5),
-          const Text(
-            '상태 메시지',
-            style: TextStyle(fontSize: 16, color: Colors.white70),
+          Text(
+            statusMessage, // Use dynamic statusMessage
+            style: const TextStyle(fontSize: 16, color: Colors.white70),
           ),
           const Spacer(),
           const Divider(
@@ -76,7 +83,8 @@ class FriendProfileScreen extends StatelessWidget {
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    if (isMyProfile) {
+    // ... (logic remains mostly the same, but now it uses friendData if available)
+    if (isMyProfile || friendData == null) { // If it's my profile or no specific friend data is passed
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -98,7 +106,8 @@ class FriendProfileScreen extends StatelessWidget {
             icon: Icons.chat_bubble,
             label: '1:1 채팅',
             onPressed: () {
-              Navigator.of(context).pushNamed('/chat/room');
+              // Navigate to chat room with specific friend's name
+              Navigator.of(context).pushNamed('/chat/room', arguments: {'title': friendData!['name']});
             },
           ),
           _buildIconButton(icon: Icons.call, label: '통화하기', onPressed: () {}),

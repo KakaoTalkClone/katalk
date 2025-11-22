@@ -3,6 +3,7 @@ import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/k_bottom_nav.dart';
 import '../friends/screens/friends_screen.dart';
 import '../chats/screens/chats_page.dart';
+import '../login/screens/login_screen.dart'; // New import for LoginScreen
 
 class HomeTabs extends StatefulWidget {
   const HomeTabs({super.key});
@@ -65,7 +66,32 @@ class _PlaceholderTab extends StatelessWidget {
         iconTheme: const IconThemeData(color: AppColors.text),
       ),
       body: Center(
-        child: Text(label, style: const TextStyle(color: AppColors.text)),
+        child: Column( // New: Use a Column to hold multiple widgets
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label, style: const TextStyle(color: AppColors.text)),
+            const SizedBox(height: 20), // Add some spacing
+            if (label == '더보기') // Only show logout for '더보기' tab
+              ElevatedButton(
+                onPressed: () {
+                  // Simulate logout: clear navigation stack and go to login
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (Route<dynamic> route) => false,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('로그아웃', style: TextStyle(fontSize: 18)),
+              ),
+          ],
+        ),
       ),
     );
   }

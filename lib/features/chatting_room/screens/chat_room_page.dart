@@ -1,8 +1,9 @@
 // lib/features/chatting_room/screens/chat_room_page.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/data/dummy_chats.dart'; 
+import '../../../core/constants/data/server.dart';
 import '../widgets/message_input_bar.dart';
+import '../widgets/message_bubble.dart';
 
 class ChatRoomPage extends StatelessWidget {
   const ChatRoomPage({super.key});
@@ -18,8 +19,9 @@ class ChatRoomPage extends StatelessWidget {
     // ✅ 더미 메시지 키: 지금은 title과 동일하게 사용
     final chatName = title;
 
-    // ✅ 사람별 더미 채팅 내역
-    final messages = kDummyChatMessages[chatName] ?? [];
+    // ✅ Get messages from Server
+    final server = Server();
+    final messages = server.getMessages(chatName);
 
     return Scaffold(
       backgroundColor: AppColors.bg,

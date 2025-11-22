@@ -6,6 +6,7 @@ class ChatListItem extends StatelessWidget {
   final String name;
   final String message;
   final String time;
+  final int unreadCount; // New: Add unreadCount
   final VoidCallback? onTap;
 
   const ChatListItem({
@@ -14,6 +15,7 @@ class ChatListItem extends StatelessWidget {
     required this.name,
     required this.message,
     required this.time,
+    required this.unreadCount, // New: Add to constructor
     this.onTap,
   });
 
@@ -37,9 +39,29 @@ class ChatListItem extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        time,
-        style: const TextStyle(color: Colors.white54, fontSize: 11),
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            time,
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
+          ),
+          if (unreadCount > 0) ...[
+            const SizedBox(height: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$unreadCount',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        ],
       ),
       onTap: onTap,
     );

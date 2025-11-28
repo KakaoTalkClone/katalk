@@ -26,12 +26,28 @@ class FriendListItem extends StatelessWidget {
             const SizedBox(width: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                avatar.isEmpty ? 'assets/images/avatars/avatar1.jpeg' : avatar,
-                width: 44,
-                height: 44,
-                fit: BoxFit.cover,
-              ),
+              child: avatar.isNotEmpty
+                  ? Image.network(
+                      avatar,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Return a default local asset if the network image fails to load
+                        return Image.asset(
+                          'assets/images/avatars/avatar1.jpeg',
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      'assets/images/avatars/avatar1.jpeg',
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(

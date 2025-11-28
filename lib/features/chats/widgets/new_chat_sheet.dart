@@ -11,12 +11,6 @@ class NewChatSheet extends StatelessWidget {
     const sheetBg = Color(0xFF111113);
     final topPad = MediaQuery.of(context).padding.top;
 
-    // void goSelect() {
-    //   Navigator.of(context).push(
-    //     MaterialPageRoute(builder: (_) => const SelectPartnersPage()),
-    //   );
-    // }
-
     return Material(
       color: Colors.transparent,
       child: Align(
@@ -58,9 +52,9 @@ class NewChatSheet extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: const [
-                  _Category(icon: Icons.chat_bubble_outline, label: '일반채팅'),
-                  _Category(icon: Icons.folder_copy_outlined, label: '팀채팅'),
-                  _Category(icon: Icons.lock_outline, label: '비밀채팅'),
+                  _Category(icon: Icons.chat_bubble_outline, label: '일반채팅', isGroupChat: false),
+                  _Category(icon: Icons.folder_copy_outlined, label: '팀채팅', isGroupChat: true),
+                  _Category(icon: Icons.lock_outline, label: '비밀채팅', isGroupChat: false),
                 ],
               ),
               const SizedBox(height: 16),
@@ -73,22 +67,26 @@ class NewChatSheet extends StatelessWidget {
 }
 
 class _Category extends StatelessWidget {
-  const _Category({required this.icon, required this.label});
+  const _Category({required this.icon, required this.label, required this.isGroupChat});
   final IconData icon;
   final String label;
+  final bool isGroupChat;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        // Close the sheet first
+        Navigator.of(context).pop();
+        // Then navigate to the selection page
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SelectPartnersPage()),
+          MaterialPageRoute(builder: (_) => SelectPartnersPage(isGroupChat: isGroupChat)),
         );
       },
       behavior: HitTestBehavior.opaque,
       child: Column(
         children: [
-          Icon(icon, color: Color(0xFFE3E9F0), size: 28),
+          Icon(icon, color: const Color(0xFFE3E9F0), size: 28),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
         ],
@@ -96,3 +94,4 @@ class _Category extends StatelessWidget {
     );
   }
 }
+

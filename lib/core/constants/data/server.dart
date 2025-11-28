@@ -3,9 +3,7 @@
 // A stub class to simulate a server providing data for the chat application.
 // This is used for development and testing purposes before connecting to a real backend.
 class Server {
-  // 사람별 채팅 내역 더미 데이터
-  // - key: 채팅 상대 이름
-  // - isMe: 내가 보낸 메시지면 true
+
   final Map<String, List<Map<String, dynamic>>> _kDummyChatMessages = {
     "김민수": [
       {
@@ -174,9 +172,160 @@ class Server {
     ],
   };
 
+  // 모든 사용자 목록 더미 데이터
+  static const List<Map<String, dynamic>> _kDummyUsers = [
+    {
+      "id": "user_001",
+      "name": "나", // 현재 사용자
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "오늘도 화이팅!",
+      "isMe": true,
+    },
+    {
+      "id": "user_002",
+      "name": "김민수",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "내일 미팅 준비 완료",
+      "isMe": false,
+    },
+    {
+      "id": "user_003",
+      "name": "홍길동",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "어제 보낸 자료 확인해봐!",
+      "isMe": false,
+    },
+    {
+      "id": "user_004",
+      "name": "박연종",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "여행 가고 싶다 ✈️",
+      "isMe": false,
+    },
+    {
+      "id": "user_005",
+      "name": "이준호",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "코딩 중...",
+      "isMe": false,
+    },
+    {
+      "id": "user_006",
+      "name": "최유진",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "커피 한 잔의 여유 ☕",
+      "isMe": false,
+    },
+    {
+      "id": "user_007",
+      "name": "오하늘",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "새로운 아이디어 구상 중",
+      "isMe": false,
+    },
+    {
+      "id": "user_008",
+      "name": "류태현",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "운동 시작!",
+      "isMe": false,
+    },
+    {
+      "id": "user_009",
+      "name": "이고을",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "영화 볼 사람?",
+      "isMe": false,
+    },
+    {
+      "id": "user_010",
+      "name": "이가은",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "책 읽는 중",
+      "isMe": false,
+    },
+    {
+      "id": "user_011",
+      "name": "박준수",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "게임 한 판?",
+      "isMe": false,
+    },
+    {
+      "id": "user_012",
+      "name": "강경민",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "새로운 시작, 새로운 하루!",
+      "isMe": false,
+    },
+    {
+      "id": "user_013",
+      "name": "강다원",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "코딩 중... 잠시만요!",
+      "isMe": false,
+    },
+    {
+      "id": "user_014",
+      "name": "강동규",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "음악은 나의 삶",
+      "isMe": false,
+    },
+    {
+      "id": "user_015",
+      "name": "강동훈",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "휴가 중 🌴",
+      "isMe": false,
+    },
+    {
+      "id": "user_016",
+      "name": "강병준",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "생각하는 중...",
+      "isMe": false,
+    },
+    {
+      "id": "user_017",
+      "name": "강성근",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "플러터는 최고야!",
+      "isMe": false,
+    },
+    {
+      "id": "user_018",
+      "name": "강유진",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "운동 중",
+      "isMe": false,
+    },
+    {
+      "id": "user_019",
+      "name": "강호성",
+      "avatar": "assets/images/avatars/avatar1.jpeg",
+      "statusMessage": "카톡하는 중입니다.",
+      "isMe": false,
+    },
+    {
+      "id": "user_020",
+      "name": "강민수",
+      "avatar": "assets/images/avatars/avatar2.jpeg",
+      "statusMessage": "연락주세요!",
+      "isMe": false,
+    },
+  ];
 
+  Map<String, dynamic> getCurrentUser() {
+    return _kDummyUsers.firstWhere((user) => user['isMe'] == true);
+  }
+
+  List<Map<String, dynamic>> getFriends() {
+    return _kDummyUsers.where((user) => user['isMe'] == false).toList();
+  }
 
   List<Map<String, dynamic>> getChatRoomList() {
+
     final chatRooms = [
       {
         "id": 101,

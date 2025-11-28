@@ -1,8 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/api_constants.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    final String username = _usernameController.text;
+    final String password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('아이디와 비밀번호를 입력해 주세요.')),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'username': username, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          final String? accessToken = responseData['data']['access'];
+          if (accessToken != null) {
+            await _storage.write(key: 'jwt_token', value: accessToken);
+            // Navigate to main tabs
+            Navigator.of(context).pushReplacementNamed('/');
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('로그인 실패: 토큰을 받을 수 없습니다.')),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('로그인 실패: ${responseData['message'] ?? '알 수 없는 오류'}')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('서버 오류: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('네트워크 오류: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +114,7 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 50),
               TextField(
+                controller: _usernameController,
                 decoration: const InputDecoration(
                   labelText: '이메일 또는 전화번호',
                   labelStyle: TextStyle(color: Colors.grey),
@@ -52,6 +129,7 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               TextField(
+                controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: '비밀번호',
@@ -70,10 +148,7 @@ class LoginScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Simulate login success and navigate to HomeTabs
-                    Navigator.of(context).pushReplacementNamed('/'); // Navigate to main tabs
-                  },
+                  onPressed: _login, // Call _login function
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.kakaoYellow,
                     shape: RoundedRectangleBorder(
@@ -92,7 +167,7 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
+              Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextButton(
@@ -102,7 +177,6 @@ class LoginScreen extends StatelessWidget {
                       style: TextStyle(color: Colors.black87),
                     ),
                   ),
-                  const Text('  |  ', style: TextStyle(color: Colors.grey)),
                   TextButton(
                     onPressed: () {},
                     child: const Text(
@@ -120,4 +194,3 @@ class LoginScreen extends StatelessWidget {
     );
   }
 }
-

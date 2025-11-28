@@ -3,26 +3,45 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/data/server.dart';
 import '../widgets/message_input_bar.dart';
-import '../widgets/message_bubble.dart';
+// import '../widgets/message_bubble.dart';
 
-class ChatRoomPage extends StatelessWidget {
+class ChatRoomPage extends StatefulWidget {
   const ChatRoomPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<ChatRoomPage> createState() => _ChatRoomPageState();
+}
+
+class _ChatRoomPageState extends State<ChatRoomPage> {
+  String _title = '채팅방';
+  dynamic _partnerInfo; // Single userId (int) or List<int> for group
+  List<Map<String, dynamic>> _messages = [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    // ✅ 앱바 타이틀 (채팅 상대 이름과 동일하게 사용)
-    final title = (args?['title'] as String?) ?? '채팅방';
+    if (args != null) {
+      _title = (args['title'] as String?) ?? '채팅방';
+      _partnerInfo = args['partnerInfo'];
 
-    // ✅ 더미 메시지 키: 지금은 title과 동일하게 사용
-    final chatName = title;
+      // For dummy messages, we still need a chatName.
+      // If it's a 1:1 chat, we can try to use the partner's nickname.
+      // If it's a group chat or a new 1:1 chat without dummy data, it will be empty.
+      final chatNameForDummy = (_partnerInfo is int) ? _title : _title; // Use title for dummy lookup
+      final server = Server();
+      _messages = server.getMessages(chatNameForDummy);
+    } else {
+      // Default case if no arguments are passed
+      _messages = Server().getMessages('채팅방'); // Fallback to a default dummy chat
+    }
+    setState(() {}); // Update the state after setting arguments and messages
+  }
 
-    // ✅ Get messages from Server
-    final server = Server();
-    final messages = server.getMessages(chatName);
-
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -41,7 +60,7 @@ class ChatRoomPage extends StatelessWidget {
           tooltip: '뒤로',
         ),
         title: Text(
-          title,
+          _title,
           style: const TextStyle(
             color: AppColors.text,
             fontSize: 18,
@@ -64,9 +83,9 @@ class ChatRoomPage extends StatelessWidget {
               child: ListView.builder(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                itemCount: messages.length,
+                itemCount: _messages.length,
                 itemBuilder: (context, index) {
-                  final msg = messages[index];
+                  final msg = _messages[index];
                   final isMe = msg['isMe'] as bool? ?? false;
                   final text = msg['message'] as String? ?? '';
                   final time = msg['time'] as String? ?? '';

@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
 import '../widgets/friend_list_item.dart';
+import '../../chats/data/chat_api.dart';
 
 class SelectPartnersPage extends StatefulWidget {
   final bool isGroupChat;
@@ -18,6 +20,8 @@ class SelectPartnersPage extends StatefulWidget {
 
 class _SelectPartnersPageState extends State<SelectPartnersPage> {
   final Set<int> _selectedIds = {}; // Store selected friend IDs
+  final ChatApi _chatApi = ChatApi(); // ✅ ChatApi 인스턴스
+
   List<dynamic> _friends = [];
   bool _isLoading = true;
   String? _error;
@@ -49,7 +53,9 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
       };
 
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.friendListEndpoint}'),
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.friendListEndpoint}',
+        ),
         headers: headers,
       );
 
@@ -76,9 +82,10 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
     }
   }
 
-  void _handleFriendTap(Map<String, dynamic> friend) {
+  /// 친구 하나 탭했을 때 동작
+  void _handleFriendTap(Map<String, dynamic> friend) async {
     if (widget.isGroupChat) {
-      // Group chat mode: toggle selection
+      // 그룹 채팅 모드: 선택 토글
       final friendId = friend['userId'] as int;
       setState(() {
         if (_selectedIds.contains(friendId)) {
@@ -88,19 +95,70 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
         }
       });
     } else {
-      // 1:1 chat mode: navigate immediately
-      final chatTitle = friend['nickname'] ?? '새로운 채팅';
-      final partnerId = friend['userId'];
-      Navigator.of(context).pop(); // Close this selection page
-      Navigator.pushNamed(
-        context,
-        '/chat/room',
-        arguments: {
-          'title': chatTitle,
-          'partnerInfo': partnerId,
-        },
-      );
+      // 1:1 채팅 모드: 실제 방 생성 후 입장
+      try {
+        final partnerId = friend['userId'] as int?;
+        final nickname = friend['nickname'] as String? ?? '새로운 채팅';
+
+        if (partnerId == null) {
+          throw Exception('userId가 없습니다.');
+        }
+
+        // ✅ 인스턴스로 호출
+        final room = await _chatApi.createDirectRoom(partnerId);
+
+        final roomId = room['roomId'];
+        final roomType = room['roomType'] ?? 'DIRECT';
+        final roomName = room['roomName'] ?? nickname;
+
+        if (!mounted) return;
+
+        Navigator.of(context).pop(); // 선택 페이지 닫기
+        Navigator.pushNamed(
+          context,
+          '/chat/room',
+          arguments: {
+            'roomId': roomId,
+            'roomType': roomType,
+            'title': roomName,
+            'partnerInfo': partnerId,
+          },
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('채팅방 생성 실패: $e')),
+        );
+      }
     }
+  }
+
+  /// ✅ 그룹 채팅 생성 버튼(확인) 눌렀을 때
+  /// 지금은 아직 백엔드 그룹 생성 API 안 붙이고,
+  /// 선택된 멤버 정보만 들고 채팅방 화면으로 진입하는 스텁 버전.
+  Future<void> _createGroupChat() async {
+    if (!widget.isGroupChat || _selectedIds.isEmpty) return;
+
+    final selectedFriends = _friends
+        .where((f) => _selectedIds.contains(f['userId'] as int))
+        .toList();
+
+    final title = '새로운 그룹 채팅 (${selectedFriends.length}명)';
+
+    // TODO: 나중에 여기에서 ChatApi로 실제 그룹 방 생성 API 호출
+
+    Navigator.of(context).pop(); // 선택 페이지 닫기
+    Navigator.pushNamed(
+      context,
+      '/chat/room',
+      arguments: {
+        'roomId': null, // 아직 서버 방 없음
+        'roomType': 'GROUP',
+        'title': title,
+        'partnerInfo':
+            selectedFriends.map((f) => f['userId'] as int).toList(),
+      },
+    );
   }
 
   @override
@@ -108,7 +166,13 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
     final topPad = MediaQuery.of(context).padding.top;
 
     final filtered = _friends
-        .where((friend) => _q.isEmpty || (friend['nickname'] as String? ?? '').toLowerCase().contains(_q.toLowerCase()))
+        .where(
+          (friend) =>
+              _q.isEmpty ||
+              (friend['nickname'] as String? ?? '')
+                  .toLowerCase()
+                  .contains(_q.toLowerCase()),
+        )
         .toList();
 
     return Scaffold(
@@ -120,26 +184,12 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
             onClose: () => Navigator.pop(context),
             isGroupChat: widget.isGroupChat,
             canConfirm: _selectedIds.isNotEmpty,
-            onConfirm: () {
-              final selectedFriends = _friends.where((f) => _selectedIds.contains(f['userId'])).toList();
-              if (selectedFriends.isEmpty) return;
-
-              final chatTitle = '새로운 그룹 채팅 (${selectedFriends.length}명)';
-              final partnerInfo = selectedFriends.map((f) => f['userId']).toList();
-
-              Navigator.of(context).pop(); // Close SelectPartnersPage
-              Navigator.pushNamed(
-                context,
-                '/chat/room',
-                arguments: {
-                  'title': chatTitle,
-                  'partnerInfo': partnerInfo,
-                },
-              );
-            },
+            onConfirm: _createGroupChat, // ✅ 이제 정의돼 있음
           ),
           const SizedBox(height: 12),
-          _SearchField(onChanged: (v) => setState(() => _q = v.trim())),
+          _SearchField(
+            onChanged: (v) => setState(() => _q = v.trim()),
+          ),
           const SizedBox(height: 6),
           const _SectionLabel(text: '친구'),
           Expanded(
@@ -155,10 +205,20 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
+      return Center(
+        child: Text(
+          _error!,
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
     }
     if (filteredFriends.isEmpty) {
-      return const Center(child: Text('검색된 친구가 없습니다.', style: TextStyle(color: Colors.white54)));
+      return const Center(
+        child: Text(
+          '검색된 친구가 없습니다.',
+          style: TextStyle(color: Colors.white54),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -172,7 +232,7 @@ class _SelectPartnersPageState extends State<SelectPartnersPage> {
         return FriendListItem(
           name: friend['nickname'] ?? '',
           avatar: friend['profileImageUrl'] ?? '',
-          selected: widget.isGroupChat ? isSelected : false, // Only show selection in group chat mode
+          selected: widget.isGroupChat ? isSelected : false,
           onTap: () => _handleFriendTap(friend),
         );
       },
@@ -215,7 +275,7 @@ class _TopBar extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          if (isGroupChat) // Only show confirm button in group chat mode
+          if (isGroupChat)
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -223,7 +283,9 @@ class _TopBar extends StatelessWidget {
                 child: Text(
                   '확인',
                   style: TextStyle(
-                    color: canConfirm ? const Color(0xFFE3E9F0) : const Color(0xFF6E7073),
+                    color: canConfirm
+                        ? const Color(0xFFE3E9F0)
+                        : const Color(0xFF6E7073),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -248,15 +310,27 @@ class _SearchField extends StatelessWidget {
         height: 44,
         child: TextField(
           onChanged: onChanged,
-          style: const TextStyle(color: AppColors.text, fontSize: 15),
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 15,
+          ),
           cursorColor: const Color(0xFFE3E9F0),
           decoration: InputDecoration(
             hintText: '이름(초성), 전화번호 검색',
-            hintStyle: const TextStyle(color: Color(0xFF8C8D90), fontSize: 15),
-            prefixIcon: const Icon(Icons.search, color: Color(0xFF8C8D90)),
+            hintStyle: const TextStyle(
+              color: Color(0xFF8C8D90),
+              fontSize: 15,
+            ),
+            prefixIcon: const Icon(
+              Icons.search,
+              color: Color(0xFF8C8D90),
+            ),
             filled: true,
             fillColor: const Color(0xFF1A1B1D),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,

@@ -25,6 +25,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   String _roomType = 'DIRECT';
 
   int? _myUserId;
+  String? _peerAvatarUrl; // ✅ 상대/방 썸네일
+
   bool _isLoading = true;
   String? _error;
   List<ChatMessage> _messages = [];
@@ -41,10 +43,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         if (_roomId == null || msg.roomId != _roomId) return;
 
         setState(() {
-          // 같은 messageId 중복 방지
           final exists =
               _messages.any((m) => m.messageId == msg.messageId);
-          if (!exists) {
+        if (!exists) {
             _messages.add(msg);
           }
         });
@@ -69,6 +70,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     _title = (args?['title'] as String?) ?? '채팅방';
     _roomId = args?['roomId'] as int?;
     _roomType = (args?['roomType'] as String?) ?? 'DIRECT';
+    _peerAvatarUrl = args?['thumbnailUrl'] as String?; // ✅ 여기서 받음
 
     _loadInitial();
   }
@@ -95,12 +97,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       if (!mounted) return;
       setState(() {
         _myUserId = myId;
-        _messages = msgs; // 일단 그대로 저장
+        _messages = msgs;
       });
 
       await _socket.connectAndSubscribe(_roomId!);
-
-      // 최초 로딩 후 아래로 스크롤
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
@@ -127,7 +127,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     });
   }
 
-  /// 📨 전송 버튼 눌렀을 때 – 실제 서버 전송
   void _handleSendMessage(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
@@ -245,7 +244,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
-    // ✅ createdAt 기준으로 오래된 → 최신 순 정렬
+    // 오래된 → 최신 순
     final sorted = [..._messages]
       ..sort((a, b) {
         final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -266,13 +265,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           time: _formatTime(msg.createdAt),
           isMe: isMe,
           nickname: msg.senderNickname,
+          avatarUrl: isMe ? null : _peerAvatarUrl, // ✅ 여기!
         );
       },
     );
   }
 }
 
-/// 말풍선 위젯 (이전 버전 그대로)
 class _MessageBubble extends StatelessWidget {
   final String text;
   final String time;
@@ -291,7 +290,6 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isMe) {
-      // 내가 보낸 메시지
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Row(
@@ -332,13 +330,12 @@ class _MessageBubble extends StatelessWidget {
         ),
       );
     } else {
-      // 상대가 보낸 메시지
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 둥근 사각형 아바타
+            // ✅ 상대/방 썸네일
             Container(
               width: 40,
               height: 40,
@@ -361,12 +358,10 @@ class _MessageBubble extends StatelessWidget {
                   : null,
             ),
             const SizedBox(width: 8),
-            // 닉네임 + 말풍선 + 시간
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 2),
                   Text(
                     nickname,
                     style: const TextStyle(

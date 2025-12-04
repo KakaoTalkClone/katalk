@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
 class ChatListItem extends StatelessWidget {
-  /// avatar:
-  ///  - "https://..." / "http://..." → 네트워크 이미지
-  ///  - "assets/..."                 → 로컬 에셋
-  ///  - ""                           → 이니셜 박스
+  /// fallback 로컬 아바타(없으면 "")
   final String avatar;
+  /// 백엔드에서 내려준 썸네일 URL
+  final String? thumbnailUrl;
+
   final String name;
   final String message;
   final String time;
@@ -21,15 +21,19 @@ class ChatListItem extends StatelessWidget {
     required this.message,
     required this.time,
     required this.unreadCount,
+    this.thumbnailUrl,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      leading: _Avatar(avatar: avatar, name: name), // ⬅ 둥근 사각형 아바타
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      leading: _Avatar(
+        avatar: avatar,
+        thumbnailUrl: thumbnailUrl,
+        name: name,
+      ),
       title: Text(
         name,
         style: const TextStyle(
@@ -64,8 +68,7 @@ class ChatListItem extends StatelessWidget {
               ),
               child: Text(
                 '$unreadCount',
-                style:
-                    const TextStyle(color: Colors.white, fontSize: 12),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ),
           ],
@@ -77,48 +80,74 @@ class ChatListItem extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.avatar, required this.name});
+  const _Avatar({
+    required this.avatar,
+    required this.thumbnailUrl,
+    required this.name,
+  });
+
+  /// fallback 로컬 에셋 경로
+  final String avatar;
+  /// 서버에서 내려준 썸네일 URL
+  final String? thumbnailUrl;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = 18.0; // 살짝 둥근 모서리
+    const size = 48.0;
+
+    // 1️⃣ 서버 썸네일이 있으면 우선 사용
+    if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          thumbnailUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _FallbackAvatar(
+            avatar: avatar,
+            name: name,
+          ),
+        ),
+      );
+    }
+
+    // 2️⃣ 썸네일이 없으면 기존 로컬 에셋/이니셜 fallback
+    return _FallbackAvatar(avatar: avatar, name: name);
+  }
+}
+
+class _FallbackAvatar extends StatelessWidget {
+  const _FallbackAvatar({
+    required this.avatar,
+    required this.name,
+  });
 
   final String avatar;
   final String name;
 
-  bool get _isNetwork =>
-      avatar.startsWith('http://') || avatar.startsWith('https://');
-
   @override
   Widget build(BuildContext context) {
-    const radius = 18.0; // ✅ 살짝 둥근 모서리
+    const radius = 10.0;
     const size = 48.0;
 
+    // 로컬 에셋이 지정돼 있으면 사용
     if (avatar.isNotEmpty) {
-      if (_isNetwork) {
-        // ✅ 서버에서 내려준 썸네일 URL
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: Image.network(
-            avatar,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _InitialFallback(name: name),
-          ),
-        );
-      } else {
-        // ✅ 로컬 에셋 경로
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: Image.asset(
-            avatar,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _InitialFallback(name: name),
-          ),
-        );
-      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.asset(
+          avatar,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _InitialFallback(name: name),
+        ),
+      );
     }
 
-    // avatar 비어있으면 이니셜 박스
+    // 에셋도 없으면 이니셜
     return _InitialFallback(name: name);
   }
 }

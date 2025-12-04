@@ -12,6 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  stomp_dart_client: ^1.0.0
+
   cupertino_icons: ^1.0.8
   http: ^1.2.1
   flutter_secure_storage: ^9.0.0

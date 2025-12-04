@@ -34,13 +34,12 @@ class _HomeTabsState extends State<HomeTabs> {
       body: PageView(
         controller: _pc,
         onPageChanged: (i) => setState(() => _index = i),
-        // 스와이프 허용(원하면 NeverScrollableScrollPhysics 로 막을 수 있음)
-        children: const [
-          FriendsScreen(),      // 0
-          ChatsPage(),        // 1
-          _PlaceholderTab(label: '오픈채팅'), // 2
-          _PlaceholderTab(label: '쇼핑'),     // 3
-          _PlaceholderTab(label: '더보기'),   // 4
+        children: [
+          const FriendsScreen(),      // 0
+          const ChatsPage(),          // 1
+          const _PlaceholderTab(label: '오픈채팅'), // 2
+          const _PlaceholderTab(label: '쇼핑'),     // 3
+          const _PlaceholderTab(label: '더보기'),   // 4
         ],
       ),
       bottomNavigationBar: KBottomNav(

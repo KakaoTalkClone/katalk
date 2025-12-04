@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../data/chat_api.dart';
 import '../data/chat_room_models.dart';
+import '../data/chat_rooms_socket_service.dart';
 import '../widgets/chat_list_item.dart';
 import '../widgets/new_chat_sheet.dart';
 
@@ -15,7 +16,9 @@ class ChatsPage extends StatefulWidget {
 }
 
 class _ChatsPageState extends State<ChatsPage> {
-  final ChatApi _api = ChatApi(); // ✅ 인스턴스
+  final ChatApi _api = ChatApi();
+
+  ChatRoomsSocketService? _roomsSocket;
 
   bool _isLoading = true;
   String? _error;
@@ -24,7 +27,36 @@ class _ChatsPageState extends State<ChatsPage> {
   @override
   void initState() {
     super.initState();
+    _roomsSocket = ChatRoomsSocketService(
+      onUpdate: _handleRoomUpdate,
+      onError: (err) => debugPrint('[ChatsPage] rooms socket error: $err'),
+    );
+    // 웹소켓 연결
+    _roomsSocket!.connectAndSubscribe();
+    // 초기 목록 로딩
     _loadRooms();
+  }
+
+  @override
+  void dispose() {
+    _roomsSocket?.dispose();
+    super.dispose();
+  }
+
+  /// 웹소켓으로 방 목록에 변화가 전달됐을 때
+  void _handleRoomUpdate(RoomListUpdate update) async {
+    debugPrint('[ChatsPage] room update from ws: roomId=${update.roomId}');
+
+    // 가장 안전한 방식: 그냥 목록 다시 조회
+    try {
+      final rooms = await _api.fetchMyChatRooms(page: 1, size: 20);
+      if (!mounted) return;
+      setState(() {
+        _rooms = rooms;
+      });
+    } catch (e) {
+      debugPrint('[ChatsPage] reload on ws error: $e');
+    }
   }
 
   Future<void> _loadRooms() async {
@@ -85,8 +117,7 @@ class _ChatsPageState extends State<ChatsPage> {
             tooltip: '검색',
             icon: const Icon(Icons.search, color: AppColors.text),
             visualDensity: VisualDensity.compact,
-            constraints:
-                const BoxConstraints(minWidth: 40, minHeight: 40),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
           gap,
           IconButton(
@@ -113,11 +144,9 @@ class _ChatsPageState extends State<ChatsPage> {
               );
             },
             tooltip: '새 대화',
-            icon: const Icon(Icons.add_comment_outlined,
-                color: AppColors.text),
+            icon: const Icon(Icons.add_comment_outlined, color: AppColors.text),
             visualDensity: VisualDensity.compact,
-            constraints:
-                const BoxConstraints(minWidth: 40, minHeight: 40),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
           gap,
           IconButton(
@@ -125,8 +154,7 @@ class _ChatsPageState extends State<ChatsPage> {
             tooltip: '새로고침',
             icon: const Icon(Icons.refresh, color: AppColors.text),
             visualDensity: VisualDensity.compact,
-            constraints:
-                const BoxConstraints(minWidth: 40, minHeight: 40),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
           const SizedBox(width: 6),
         ],
@@ -153,8 +181,7 @@ class _ChatsPageState extends State<ChatsPage> {
           Center(
             child: Column(
               children: [
-                const Icon(Icons.error_outline,
-                    color: Colors.red, size: 32),
+                const Icon(Icons.error_outline, color: Colors.red, size: 32),
                 const SizedBox(height: 8),
                 Text(
                   _error!,
@@ -194,15 +221,14 @@ class _ChatsPageState extends State<ChatsPage> {
 
         final room = _rooms[index - 1];
 
-        final avatarAsset = room.roomType == 'DIRECT'
+        final fallbackAvatar = room.roomType == 'DIRECT'
             ? 'assets/images/avatars/avatar1.jpeg'
             : 'assets/images/avatars/group_default.png';
 
         return ChatListItem(
-          avatar: avatarAsset,
-          name: room.roomName.isNotEmpty
-              ? room.roomName
-              : '이름 없는 채팅방',
+          avatarUrl: room.thumbnailUrl,      // 🔥 백엔드 썸네일
+          fallbackAsset: fallbackAvatar,     // 🔥 없으면 기존 기본 아바타
+          name: room.roomName.isNotEmpty ? room.roomName : '이름 없는 채팅방',
           message: room.lastMessagePreview,
           time: _formatTime(room.lastMessageAt),
           unreadCount: room.unreadCount,

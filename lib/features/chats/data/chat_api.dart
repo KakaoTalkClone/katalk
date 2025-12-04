@@ -11,13 +11,13 @@ import 'chat_room_models.dart';
 class ChatApi {
   ChatApi();
 
-  // 토큰 읽어오기용 SecureStorage
   static final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  // 내 id 캐시
   static int? _cachedMyId;
 
-  /// JWT 토큰 가져오기
+  /// userId → UserProfile 캐시
+  static final Map<int, UserProfile> _profileCache = {};
+
   Future<String> _getToken() async {
     final token = await _storage.read(key: 'jwt_token');
     if (token == null) {
@@ -34,9 +34,7 @@ class ChatApi {
     };
   }
 
-  /// ✅ 내가 속한 채팅방 목록 조회
-  ///
-  /// GET {baseUrl}/api/chat/rooms?page=1&size=20
+  /// 내가 속한 채팅방 목록 조회
   Future<List<ChatRoomSummary>> fetchMyChatRooms({
     int page = 1,
     int size = 20,
@@ -68,9 +66,7 @@ class ChatApi {
         .toList();
   }
 
-  /// ✅ 1:1 채팅방 생성
-  ///
-  /// POST {baseUrl}/api/chat/rooms/direct?targetUserId={id}
+  /// 1:1 채팅방 생성
   Future<Map<String, dynamic>> createDirectRoom(int targetUserId) async {
     final token = await _getToken();
     final uri = Uri.parse(
@@ -82,7 +78,7 @@ class ChatApi {
     final res = await http.post(
       uri,
       headers: _headers(token),
-      body: jsonEncode({}), // HTML 테스트 클라이언트와 맞추기용
+      body: jsonEncode({}),
     );
 
     debugPrint('[ChatApi] createDirectRoom status=${res.statusCode}');
@@ -100,10 +96,7 @@ class ChatApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
-  /// ✅ 그룹 채팅방 생성
-  ///
-  /// POST {baseUrl}/api/chat/rooms/group?roomName={name}
-  /// body: [userId1, userId2, ...]
+  /// 그룹 채팅방 생성
   Future<Map<String, dynamic>> createGroupRoom({
     required String roomName,
     required List<int> memberUserIds,
@@ -113,9 +106,7 @@ class ChatApi {
       '${ApiConstants.baseUrl}${ApiConstants.chatGroupRoomEndpoint}'
       '?roomName=${Uri.encodeComponent(roomName)}',
     );
-    debugPrint(
-      '[ChatApi] createGroupRoom uri=$uri, members=$memberUserIds',
-    );
+    debugPrint('[ChatApi] createGroupRoom uri=$uri, members=$memberUserIds');
 
     final res = await http.post(
       uri,
@@ -138,7 +129,7 @@ class ChatApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
-  /// ✅ 내 유저 ID 조회 (한 번만 불러오고 캐시)
+  /// 내 유저 ID 조회 (캐시)
   Future<int> fetchMyUserId() async {
     if (_cachedMyId != null) return _cachedMyId!;
 
@@ -171,9 +162,7 @@ class ChatApi {
     return id;
   }
 
-  /// ✅ 특정 채팅방 메시지 목록
-  ///
-  /// GET {baseUrl}/api/chat/rooms/{roomId}/messages?page=1&size=50
+  /// 특정 채팅방 메시지 목록
   Future<List<ChatMessage>> fetchMessages({
     required int roomId,
     int page = 1,
@@ -204,5 +193,34 @@ class ChatApi {
     return list
         .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// 특정 유저 프로필 조회 + 캐시
+  Future<UserProfile> fetchUserProfile(int userId) async {
+    if (_profileCache.containsKey(userId)) {
+      return _profileCache[userId]!;
+    }
+
+    final token = await _getToken();
+    final uri = Uri.parse('${ApiConstants.baseUrl}/api/user/$userId');
+    debugPrint('[ChatApi] fetchUserProfile uri=$uri');
+
+    final res = await http.get(uri, headers: _headers(token));
+
+    debugPrint('[ChatApi] fetchUserProfile status=${res.statusCode}');
+    debugPrint('[ChatApi] fetchUserProfile body=${utf8.decode(res.bodyBytes)}');
+
+    if (res.statusCode != 200) {
+      throw Exception('프로필 조회 실패 (${res.statusCode})');
+    }
+
+    final body = json.decode(utf8.decode(res.bodyBytes));
+    if (body['success'] != true || body['data'] == null) {
+      throw Exception('프로필 응답 형식이 올바르지 않습니다.');
+    }
+
+    final profile = UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+    _profileCache[userId] = profile;
+    return profile;
   }
 }

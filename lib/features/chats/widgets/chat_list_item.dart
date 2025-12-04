@@ -1,21 +1,28 @@
+// lib/features/chats/widgets/chat_list_item.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
 class ChatListItem extends StatelessWidget {
-  final String avatar; // ""면 이니셜
+  /// 백엔드에서 내려주는 썸네일 URL (없을 수도 있음)
+  final String? avatarUrl;
+
+  /// DIRECT / GROUP 에 따라 쓰던 기존 기본 아바타 asset 경로
+  final String fallbackAsset;
+
   final String name;
   final String message;
   final String time;
-  final int unreadCount; // New: Add unreadCount
+  final int unreadCount;
   final VoidCallback? onTap;
 
   const ChatListItem({
     super.key,
-    required this.avatar,
+    required this.avatarUrl,
+    required this.fallbackAsset,
     required this.name,
     required this.message,
     required this.time,
-    required this.unreadCount, // New: Add to constructor
+    required this.unreadCount,
     this.onTap,
   });
 
@@ -23,7 +30,11 @@ class ChatListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      leading: _Avatar(avatar: avatar, name: name), // ⬅ 둥근 사각형 아바타
+      leading: _Avatar(
+        avatarUrl: avatarUrl,
+        fallbackAsset: fallbackAsset,
+        name: name,
+      ),
       title: Text(
         name,
         style: const TextStyle(
@@ -69,40 +80,84 @@ class ChatListItem extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.avatar, required this.name});
+  const _Avatar({
+    required this.avatarUrl,
+    required this.fallbackAsset,
+    required this.name,
+  });
 
-  final String avatar;
+  final String? avatarUrl;
+  final String fallbackAsset;
   final String name;
 
   @override
   Widget build(BuildContext context) {
-    const radius = 18.0; // ✅ 살짝 둥근 모서리
+    const radius = 18.0;
     const size = 48.0;
 
-    if (avatar.isNotEmpty) {
+    // 1) 썸네일 URL 있으면 네트워크 이미지 우선
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: Image.asset(
-          avatar,
+        child: Image.network(
+          avatarUrl!,
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _InitialFallback(name: name),
+          errorBuilder: (_, __, ___) => _InitialFallback(
+            name: name,
+            fallbackAsset: fallbackAsset,
+          ),
         ),
       );
     }
-    return _InitialFallback(name: name);
+
+    // 2) 썸네일 없으면 기존 asset 아바타
+    if (fallbackAsset.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.asset(
+          fallbackAsset,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              _InitialFallback(name: name, fallbackAsset: ''),
+        ),
+      );
+    }
+
+    // 3) 둘 다 없으면 이니셜 박스
+    return _InitialFallback(name: name, fallbackAsset: '');
   }
 }
 
 class _InitialFallback extends StatelessWidget {
-  const _InitialFallback({required this.name});
+  const _InitialFallback({
+    required this.name,
+    required this.fallbackAsset,
+  });
+
   final String name;
+  final String fallbackAsset;
 
   @override
   Widget build(BuildContext context) {
     const radius = 10.0;
     const size = 48.0;
+
+    if (fallbackAsset.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.asset(
+          fallbackAsset,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
     return Container(
       width: size,
       height: size,

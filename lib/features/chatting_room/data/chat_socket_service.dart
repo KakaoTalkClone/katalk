@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:stomp_dart_client/stomp.dart';
 import 'package:stomp_dart_client/stomp_config.dart';
-import 'package:stomp_dart_client/stomp_frame.dart';
 
 import '../../chats/data/chat_room_models.dart';
 
@@ -23,7 +22,7 @@ class ChatSocketService {
   final _storage = const FlutterSecureStorage();
 
   StompClient? _client;
-  void Function()? _roomSub; // ⬅️ 여기! 원래 StompUnsubscribe였던 부분
+  void Function()? _roomSub; // 이전 구독 해제용
   int? _connectedRoomId;
   String? _token; // send 시 Authorization 헤더용
 
@@ -57,7 +56,7 @@ class ChatSocketService {
         webSocketConnectHeaders: {
           'Authorization': 'Bearer $_token',
         },
-        onConnect: (StompFrame frame) {
+        onConnect: (_) {
           debugPrint('[ChatSocket] connected');
           _subscribeRoom(roomId);
         },
@@ -65,7 +64,7 @@ class ChatSocketService {
           debugPrint('[ChatSocket] stomp error: ${frame.body}');
           onError?.call(frame.body ?? 'stomp error');
         },
-        onWebSocketError: (dynamic error) {
+        onWebSocketError: (error) {
           debugPrint('[ChatSocket] websocket error: $error');
           onError?.call(error);
         },
@@ -81,7 +80,7 @@ class ChatSocketService {
   }
 
   void _subscribeRoom(int roomId) {
-    if (_client == null || !_client!.connected) return;
+    if (!(_client?.connected ?? false)) return;
 
     // 같은 방이면 다시 구독 안 함
     if (_roomSub != null && _connectedRoomId == roomId) return;
@@ -94,14 +93,21 @@ class ChatSocketService {
 
     _roomSub = _client!.subscribe(
       destination: topic,
-      callback: (StompFrame frame) {
+      callback: (frame) {
         if (frame.body == null) return;
         try {
           final map = json.decode(frame.body!) as Map<String, dynamic>;
+
+          // HTML 테스트 클라 기준: 읽음 이벤트 등도 같은 topic으로 옴
+          // 우리는 일단 content 있는 메시지만 처리
+          if (!map.containsKey('content')) {
+            return;
+          }
+
           final msg = ChatMessage.fromJson(map);
           onMessage(msg);
-        } catch (e) {
-          debugPrint('[ChatSocket] message parse error: $e');
+        } catch (e, s) {
+          debugPrint('[ChatSocket] message parse error: $e\n$s');
         }
       },
     );
@@ -109,7 +115,7 @@ class ChatSocketService {
     _connectedRoomId = roomId;
   }
 
-  /// 실제 텍스트 메시지 전송 (HTML sendMsg()와 동일 역할)
+  /// 텍스트 메시지 전송 (HTML sendMsg()와 동일)
   Future<void> sendText(int roomId, String content) async {
     if (_client == null || !_client!.connected) {
       debugPrint('[ChatSocket] sendText but client not connected');

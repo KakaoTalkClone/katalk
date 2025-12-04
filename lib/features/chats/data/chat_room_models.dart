@@ -10,7 +10,7 @@ class ChatRoomSummary {
   final String lastMessagePreview;
   final DateTime? lastMessageAt;
 
-  /// ✅ 백엔드에서 내려주는 썸네일 URL (상대방/그룹 프로필)
+  /// 백엔드에서 내려주는 썸네일 URL (상대방/그룹 프로필)
   final String? thumbnailUrl;
 
   ChatRoomSummary({
@@ -24,17 +24,14 @@ class ChatRoomSummary {
   });
 
   factory ChatRoomSummary.fromJson(Map<String, dynamic> json) {
-    // roomType / chatRoomType 둘 다 올 수 있어서 둘 다 처리
     final dynamic typeRaw =
         json['roomType'] ?? json['chatRoomType'] ?? 'DIRECT';
 
-    // lastMessagePreview 가 null 이거나 List 로 올 수도 있어서 방어코드
     final dynamic previewRaw = json['lastMessagePreview'];
     final String preview = previewRaw == null
         ? ''
         : (previewRaw is String ? previewRaw : previewRaw.toString());
 
-    // unreadCount 도 혹시 String 으로 올 수도 있으니 방어
     final dynamic unreadRaw = json['unreadCount'];
     final int unread = unreadRaw is int
         ? unreadRaw
@@ -47,7 +44,7 @@ class ChatRoomSummary {
       unreadCount: unread,
       lastMessagePreview: preview,
       lastMessageAt: _parseDateTime(json['lastMessageAt']),
-      thumbnailUrl: json['thumbnailUrl'] as String?, // ✅ 여기!
+      thumbnailUrl: json['thumbnailUrl'] as String?,
     );
   }
 }
@@ -93,31 +90,56 @@ class ChatMessage {
   }
 }
 
+/// 유저 프로필 ( /api/user/{userId} )
+class UserProfile {
+  final String? profileImageUrl;
+  final List<String> backgroundImageUrls;
+  final String nickname;
+  final String statusMessage;
+
+  UserProfile({
+    required this.profileImageUrl,
+    required this.backgroundImageUrls,
+    required this.nickname,
+    required this.statusMessage,
+  });
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final data = json; // 이미 data 부분만 넘긴다고 가정
+    return UserProfile(
+      profileImageUrl: data['profileImageUrl'] as String?,
+      backgroundImageUrls: (data['backgroundImageUrls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      nickname: (data['nickname'] as String?) ?? '',
+      statusMessage: (data['statusMessage'] as String?) ?? '',
+    );
+  }
+}
+
 /// Java LocalDateTime 배열 / ISO 문자열 / epoch 등 다 받아주는 공통 파서
 DateTime? _parseDateTime(dynamic value) {
   if (value == null) return null;
 
   try {
-    // 1) [2025, 12, 3, 10, 42, 25] 같이 배열로 오는 경우
     if (value is List) {
       if (value.length >= 5) {
         return DateTime(
-          (value[0] as num).toInt(), // year
-          (value[1] as num).toInt(), // month
-          (value[2] as num).toInt(), // day
-          (value[3] as num).toInt(), // hour
-          (value[4] as num).toInt(), // minute
-          value.length > 5 ? (value[5] as num).toInt() : 0, // second
+          (value[0] as num).toInt(),
+          (value[1] as num).toInt(),
+          (value[2] as num).toInt(),
+          (value[3] as num).toInt(),
+          (value[4] as num).toInt(),
+          value.length > 5 ? (value[5] as num).toInt() : 0,
         );
       }
     }
 
-    // 2) ISO 문자열 "2025-12-03T10:42:25" 같은 경우
     if (value is String) {
       return DateTime.parse(value);
     }
 
-    // 3) epoch millis 로 오는 경우
     if (value is int) {
       return DateTime.fromMillisecondsSinceEpoch(value);
     }

@@ -16,47 +16,25 @@ class ChatRoomPage extends StatefulWidget {
 
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final ChatApi _api = ChatApi();
-  late final ChatSocketService _socket;
-
-  final ScrollController _scrollController = ScrollController();
+  ChatSocketService? _socketService;
 
   String _title = '채팅방';
   int? _roomId;
   String _roomType = 'DIRECT';
 
   int? _myUserId;
-  String? _peerAvatarUrl; // ✅ 상대/방 썸네일
-
   bool _isLoading = true;
   String? _error;
-  List<ChatMessage> _messages = [];
+
+  final List<ChatMessage> _messages = [];
+  final Set<int> _messageIds = {};
+
+  /// senderId → profileImageUrl
+  final Map<int, String> _profileImages = {};
 
   bool _initialized = false;
 
-  @override
-  void initState() {
-    super.initState();
-
-    _socket = ChatSocketService(
-      onMessage: (msg) {
-        if (!mounted) return;
-        if (_roomId == null || msg.roomId != _roomId) return;
-
-        setState(() {
-          final exists =
-              _messages.any((m) => m.messageId == msg.messageId);
-        if (!exists) {
-            _messages.add(msg);
-          }
-        });
-
-        _scrollToBottom();
-      },
-      onError: (err) {
-        debugPrint('[ChatRoomPage] socket error: $err');
-      },
-    );
-  }
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void didChangeDependencies() {
@@ -70,7 +48,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     _title = (args?['title'] as String?) ?? '채팅방';
     _roomId = args?['roomId'] as int?;
     _roomType = (args?['roomType'] as String?) ?? 'DIRECT';
-    _peerAvatarUrl = args?['thumbnailUrl'] as String?; // ✅ 여기서 받음
 
     _loadInitial();
   }
@@ -94,14 +71,46 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       final msgs =
           await _api.fetchMessages(roomId: _roomId!, page: 1, size: 50);
 
-      if (!mounted) return;
-      setState(() {
-        _myUserId = myId;
-        _messages = msgs;
+      // 오래된 → 최신 순
+      msgs.sort((a, b) {
+        final at = a.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(a.messageId);
+        final bt = b.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(b.messageId);
+        return at.compareTo(bt);
       });
 
-      await _socket.connectAndSubscribe(_roomId!);
-      _scrollToBottom();
+      if (!mounted) return;
+
+      // 먼저 메시지/ID 세팅
+      _messages
+        ..clear()
+        ..addAll(msgs);
+      _messageIds
+        ..clear()
+        ..addAll(msgs.map((m) => m.messageId));
+
+      _myUserId = myId;
+
+      // 프로필 선로드 (나 제외)
+      final otherIds = msgs
+          .map((m) => m.senderId)
+          .where((id) => id != myId)
+          .toSet()
+          .toList();
+      for (final id in otherIds) {
+        _ensureProfile(id);
+      }
+
+      setState(() {});
+
+      // 웹소켓 연결
+      _socketService ??= ChatSocketService(
+        onMessage: _handleIncomingMessage,
+        onError: (err) =>
+            debugPrint('[ChatRoom] socket error: $err'),
+      );
+      await _socketService!.connectAndSubscribe(_roomId!);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -112,26 +121,64 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       setState(() {
         _isLoading = false;
       });
+      _scrollToBottom();
     }
   }
 
+  Future<void> _ensureProfile(int userId) async {
+    if (_profileImages.containsKey(userId)) return;
+    try {
+      final profile = await _api.fetchUserProfile(userId);
+      final url = profile.profileImageUrl;
+      if (!mounted || url == null || url.isEmpty) return;
+      setState(() {
+        _profileImages[userId] = url;
+      });
+    } catch (_) {
+      // 프로필 없으면 그냥 기본 아이콘 사용
+    }
+  }
+
+  void _handleIncomingMessage(ChatMessage msg) {
+    if (_roomId == null || msg.roomId != _roomId) return;
+    if (!mounted) return;
+
+    setState(() {
+      if (_messageIds.contains(msg.messageId)) return;
+
+      _messages.add(msg);
+      _messageIds.add(msg.messageId);
+
+      _messages.sort((a, b) {
+        final at = a.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(a.messageId);
+        final bt = b.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(b.messageId);
+        return at.compareTo(bt);
+      });
+    });
+
+    if (_myUserId != null && msg.senderId != _myUserId) {
+      _ensureProfile(msg.senderId);
+    }
+
+    _scrollToBottom();
+  }
+
   void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
+      _scrollController.jumpTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
       );
     });
   }
 
-  void _handleSendMessage(String text) {
+  Future<void> _handleSendMessage(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
-    if (_roomId == null) {
+    if (_myUserId == null || _roomId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('채팅방 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.'),
@@ -140,7 +187,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       return;
     }
 
-    _socket.sendText(_roomId!, trimmed);
+    await _socketService?.sendText(_roomId!, trimmed);
   }
 
   String _formatTime(DateTime? dt) {
@@ -155,7 +202,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   void dispose() {
-    _socket.dispose();
+    _socketService?.dispose();
+    _socketService = null;
     _scrollController.dispose();
     super.dispose();
   }
@@ -244,28 +292,22 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
-    // 오래된 → 최신 순
-    final sorted = [..._messages]
-      ..sort((a, b) {
-        final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return ad.compareTo(bd);
-      });
-
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      itemCount: sorted.length,
+      itemCount: _messages.length,
       itemBuilder: (context, index) {
-        final msg = sorted[index];
+        final msg = _messages[index];
         final isMe = (_myUserId != null && msg.senderId == _myUserId);
+        final avatarUrl =
+            !isMe ? _profileImages[msg.senderId] : null;
 
         return _MessageBubble(
           text: msg.content,
           time: _formatTime(msg.createdAt),
           isMe: isMe,
           nickname: msg.senderNickname,
-          avatarUrl: isMe ? null : _peerAvatarUrl, // ✅ 여기!
+          avatarUrl: avatarUrl,
         );
       },
     );
@@ -335,7 +377,6 @@ class _MessageBubble extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ 상대/방 썸네일
             Container(
               width: 40,
               height: 40,

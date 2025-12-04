@@ -10,6 +10,9 @@ class ChatRoomSummary {
   final String lastMessagePreview;
   final DateTime? lastMessageAt;
 
+  /// ✅ 백엔드에서 내려주는 썸네일 URL (상대방/그룹 프로필)
+  final String? thumbnailUrl;
+
   ChatRoomSummary({
     required this.roomId,
     required this.roomName,
@@ -17,11 +20,13 @@ class ChatRoomSummary {
     required this.unreadCount,
     required this.lastMessagePreview,
     required this.lastMessageAt,
+    this.thumbnailUrl,
   });
 
   factory ChatRoomSummary.fromJson(Map<String, dynamic> json) {
     // roomType / chatRoomType 둘 다 올 수 있어서 둘 다 처리
-    final dynamic typeRaw = json['roomType'] ?? json['chatRoomType'] ?? 'DIRECT';
+    final dynamic typeRaw =
+        json['roomType'] ?? json['chatRoomType'] ?? 'DIRECT';
 
     // lastMessagePreview 가 null 이거나 List 로 올 수도 있어서 방어코드
     final dynamic previewRaw = json['lastMessagePreview'];
@@ -42,6 +47,7 @@ class ChatRoomSummary {
       unreadCount: unread,
       lastMessagePreview: preview,
       lastMessageAt: _parseDateTime(json['lastMessageAt']),
+      thumbnailUrl: json['thumbnailUrl'] as String?, // ✅ 여기!
     );
   }
 }

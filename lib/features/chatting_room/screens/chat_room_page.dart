@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../chats/data/chat_api.dart';
 import '../../chats/data/chat_room_models.dart';
+import '../data/chat_socket_service.dart';
 import '../widgets/message_input_bar.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -15,6 +16,9 @@ class ChatRoomPage extends StatefulWidget {
 
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final ChatApi _api = ChatApi();
+  late final ChatSocketService _socket;
+
+  final ScrollController _scrollController = ScrollController();
 
   String _title = '채팅방';
   int? _roomId;
@@ -26,6 +30,32 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   List<ChatMessage> _messages = [];
 
   bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _socket = ChatSocketService(
+      onMessage: (msg) {
+        if (!mounted) return;
+        if (_roomId == null || msg.roomId != _roomId) return;
+
+        setState(() {
+          // 같은 messageId 중복 방지
+          final exists =
+              _messages.any((m) => m.messageId == msg.messageId);
+          if (!exists) {
+            _messages.add(msg);
+          }
+        });
+
+        _scrollToBottom();
+      },
+      onError: (err) {
+        debugPrint('[ChatRoomPage] socket error: $err');
+      },
+    );
+  }
 
   @override
   void didChangeDependencies() {
@@ -65,8 +95,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       if (!mounted) return;
       setState(() {
         _myUserId = myId;
-        _messages = msgs;
+        _messages = msgs; // 일단 그대로 저장
       });
+
+      await _socket.connectAndSubscribe(_roomId!);
+
+      // 최초 로딩 후 아래로 스크롤
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -80,12 +115,24 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
-  /// 📨 전송 버튼 눌렀을 때 - 로컬에만 추가 (웹소켓 붙이기 전)
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  /// 📨 전송 버튼 눌렀을 때 – 실제 서버 전송
   void _handleSendMessage(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
-    if (_myUserId == null || _roomId == null) {
+    if (_roomId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('채팅방 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.'),
@@ -94,23 +141,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       return;
     }
 
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          // 서버에 아직 안보낸 로컬 메시지라 음수 id 사용
-          messageId: -DateTime.now().millisecondsSinceEpoch,
-          roomId: _roomId!,
-          senderId: _myUserId!,
-          senderNickname: '나', // 나중에 내 닉네임으로 교체 가능
-          content: trimmed,
-          contentType: 'TEXT',
-          createdAt: DateTime.now(),
-          unreadCount: 0,
-        ),
-      );
-    });
-
-    // TODO: 다음 단계에서 STOMP/WebSocket으로 실제 서버 전송 붙이기
+    _socket.sendText(_roomId!, trimmed);
   }
 
   String _formatTime(DateTime? dt) {
@@ -121,6 +152,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     final period = isAm ? '오전' : '오후';
     return '$period $h12:$minute';
+  }
+
+  @override
+  void dispose() {
+    _socket.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -207,11 +245,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
+    // ✅ createdAt 기준으로 오래된 → 최신 순 정렬
+    final sorted = [..._messages]
+      ..sort((a, b) {
+        final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return ad.compareTo(bd);
+      });
+
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      itemCount: _messages.length,
+      itemCount: sorted.length,
       itemBuilder: (context, index) {
-        final msg = _messages[index];
+        final msg = sorted[index];
         final isMe = (_myUserId != null && msg.senderId == _myUserId);
 
         return _MessageBubble(
@@ -219,15 +266,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           time: _formatTime(msg.createdAt),
           isMe: isMe,
           nickname: msg.senderNickname,
-          // 나중에 상대 프로필 URL 넣고 싶으면 여기 avatarUrl 채우면 됨
-          // avatarUrl: isMe ? null : friendProfileImageUrl,
         );
       },
     );
   }
 }
 
-/// 말풍선 위젯
+/// 말풍선 위젯 (이전 버전 그대로)
 class _MessageBubble extends StatelessWidget {
   final String text;
   final String time;
@@ -246,7 +291,7 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isMe) {
-      // 👤 내가 보낸 메시지
+      // 내가 보낸 메시지
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Row(
@@ -287,13 +332,13 @@ class _MessageBubble extends StatelessWidget {
         ),
       );
     } else {
-      // 👤 상대가 보낸 메시지
+      // 상대가 보낸 메시지
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ 둥근 사각형 아바타
+            // 둥근 사각형 아바타
             Container(
               width: 40,
               height: 40,
@@ -321,7 +366,7 @@ class _MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ✅ 닉네임 색을 더 밝게
+                  const SizedBox(height: 2),
                   Text(
                     nickname,
                     style: const TextStyle(
@@ -334,7 +379,6 @@ class _MessageBubble extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // 말풍선
                       Flexible(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -344,8 +388,7 @@ class _MessageBubble extends StatelessWidget {
                           decoration: const BoxDecoration(
                             color: Color(0xFF2A2A2A),
                             borderRadius: BorderRadius.only(
-                              // ✅ 꼬다리를 좌측 *상단*으로
-                              topLeft: Radius.circular(4),   // ← 꼬다리 느낌
+                              topLeft: Radius.circular(4),
                               topRight: Radius.circular(16),
                               bottomLeft: Radius.circular(16),
                               bottomRight: Radius.circular(16),
@@ -379,5 +422,3 @@ class _MessageBubble extends StatelessWidget {
     }
   }
 }
-
-

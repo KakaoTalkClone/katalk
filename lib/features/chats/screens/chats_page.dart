@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/api_constants.dart'; // ✅ baseUrl 사용
 import '../data/chat_api.dart';
 import '../data/chat_room_models.dart';
 import '../widgets/chat_list_item.dart';
@@ -59,6 +60,32 @@ class _ChatsPageState extends State<ChatsPage> {
     final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     final period = isAm ? '오전' : '오후';
     return '$period $h12:$minute';
+  }
+
+  /// ✅ 백엔드 thumbnailUrl → 실제로 쓸 avatar URL 계산
+  String _buildAvatarUrl(ChatRoomSummary room) {
+    final thumb = room.thumbnailUrl;
+
+    if (thumb != null && thumb.isNotEmpty) {
+      // 1) 이미 절대 URL 인 경우 (http/https)
+      if (thumb.startsWith('http://') || thumb.startsWith('https://')) {
+        return thumb;
+      }
+
+      // 2) "/files/xxx" 같은 상대경로인 경우 → baseUrl 앞에 붙여줌
+      if (thumb.startsWith('/')) {
+        // ApiConstants.baseUrl 이 "http://localhost:8080" 같이 slash 없이 끝난다고 가정
+        return '${ApiConstants.baseUrl}$thumb';
+      }
+
+      // 3) 기타 문자열이면 일단 baseUrl 뒤에 붙여보기
+      return '${ApiConstants.baseUrl}/$thumb';
+    }
+
+    // 4) 썸네일이 아예 없으면 기존 기본 아바타 사용
+    return room.roomType == 'DIRECT'
+        ? 'assets/images/avatars/avatar1.jpeg'
+        : 'assets/images/avatars/group_default.png';
   }
 
   @override
@@ -193,13 +220,10 @@ class _ChatsPageState extends State<ChatsPage> {
         }
 
         final room = _rooms[index - 1];
-
-        final avatarAsset = room.roomType == 'DIRECT'
-            ? 'assets/images/avatars/avatar1.jpeg'
-            : 'assets/images/avatars/group_default.png';
+        final avatar = _buildAvatarUrl(room); // ✅ 여기서 avatar URL 계산
 
         return ChatListItem(
-          avatar: avatarAsset,
+          avatar: avatar,
           name: room.roomName.isNotEmpty
               ? room.roomName
               : '이름 없는 채팅방',

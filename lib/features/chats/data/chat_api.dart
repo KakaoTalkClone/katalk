@@ -11,9 +11,13 @@ import 'chat_room_models.dart';
 class ChatApi {
   ChatApi();
 
+  // 토큰 읽어오기용 SecureStorage
   static final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  int? _cachedMyId;
 
+  // 내 id 캐시
+  static int? _cachedMyId;
+
+  /// JWT 토큰 가져오기
   Future<String> _getToken() async {
     final token = await _storage.read(key: 'jwt_token');
     if (token == null) {
@@ -30,7 +34,9 @@ class ChatApi {
     };
   }
 
-  /// 내가 속한 채팅방 목록 조회
+  /// ✅ 내가 속한 채팅방 목록 조회
+  ///
+  /// GET {baseUrl}/api/chat/rooms?page=1&size=20
   Future<List<ChatRoomSummary>> fetchMyChatRooms({
     int page = 1,
     int size = 20,
@@ -62,7 +68,9 @@ class ChatApi {
         .toList();
   }
 
-  /// 1:1 채팅방 생성 (HTML createDirect()와 동일)
+  /// ✅ 1:1 채팅방 생성
+  ///
+  /// POST {baseUrl}/api/chat/rooms/direct?targetUserId={id}
   Future<Map<String, dynamic>> createDirectRoom(int targetUserId) async {
     final token = await _getToken();
     final uri = Uri.parse(
@@ -74,7 +82,7 @@ class ChatApi {
     final res = await http.post(
       uri,
       headers: _headers(token),
-      body: jsonEncode({}), // HTML도 {} 보냄
+      body: jsonEncode({}), // HTML 테스트 클라이언트와 맞추기용
     );
 
     debugPrint('[ChatApi] createDirectRoom status=${res.statusCode}');
@@ -92,48 +100,51 @@ class ChatApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
-  /// 방 안 메시지 목록 조회 (HTML enterRoom()에서 불러오는 것)
-  Future<List<ChatMessage>> fetchMessages({
-    required int roomId,
-    int page = 1,
-    int size = 50,
+  /// ✅ 그룹 채팅방 생성
+  ///
+  /// POST {baseUrl}/api/chat/rooms/group?roomName={name}
+  /// body: [userId1, userId2, ...]
+  Future<Map<String, dynamic>> createGroupRoom({
+    required String roomName,
+    required List<int> memberUserIds,
   }) async {
     final token = await _getToken();
     final uri = Uri.parse(
-      '${ApiConstants.baseUrl}'
-      '${ApiConstants.chatRoomMessagesEndpoint(roomId)}'
-      '?page=$page&size=$size',
+      '${ApiConstants.baseUrl}${ApiConstants.chatGroupRoomEndpoint}'
+      '?roomName=${Uri.encodeComponent(roomName)}',
     );
-    debugPrint('[ChatApi] fetchMessages uri=$uri');
+    debugPrint(
+      '[ChatApi] createGroupRoom uri=$uri, members=$memberUserIds',
+    );
 
-    final res = await http.get(uri, headers: _headers(token));
+    final res = await http.post(
+      uri,
+      headers: _headers(token),
+      body: jsonEncode(memberUserIds),
+    );
 
-    debugPrint('[ChatApi] fetchMessages status=${res.statusCode}');
-    debugPrint('[ChatApi] fetchMessages body=${utf8.decode(res.bodyBytes)}');
+    debugPrint('[ChatApi] createGroupRoom status=${res.statusCode}');
+    debugPrint('[ChatApi] createGroupRoom body=${utf8.decode(res.bodyBytes)}');
 
     if (res.statusCode != 200) {
-      throw Exception('메시지 목록 조회 실패 (${res.statusCode})');
+      throw Exception('그룹 채팅방 생성 실패 (${res.statusCode})');
     }
 
     final body = json.decode(utf8.decode(res.bodyBytes));
     if (body['success'] != true || body['data'] == null) {
-      throw Exception('메시지 응답 형식이 올바르지 않습니다.');
+      throw Exception('그룹 채팅방 응답 형식이 올바르지 않습니다.');
     }
 
-    final List<dynamic> list = body['data']['content'] ?? [];
-    return list
-        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return Map<String, dynamic>.from(body['data'] as Map);
   }
 
-  /// 내 userId 조회 (HTML loginAndConnect()에서 /user/my/info 호출하던 것)
+  /// ✅ 내 유저 ID 조회 (한 번만 불러오고 캐시)
   Future<int> fetchMyUserId() async {
     if (_cachedMyId != null) return _cachedMyId!;
 
     final token = await _getToken();
-    final uri = Uri.parse(
-      '${ApiConstants.baseUrl}${ApiConstants.userMyInfoEndpoint}',
-    );
+    final uri =
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.userMyInfoEndpoint}');
     debugPrint('[ChatApi] fetchMyUserId uri=$uri');
 
     final res = await http.get(uri, headers: _headers(token));
@@ -158,5 +169,40 @@ class ChatApi {
 
     _cachedMyId = id;
     return id;
+  }
+
+  /// ✅ 특정 채팅방 메시지 목록
+  ///
+  /// GET {baseUrl}/api/chat/rooms/{roomId}/messages?page=1&size=50
+  Future<List<ChatMessage>> fetchMessages({
+    required int roomId,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final token = await _getToken();
+    final uri = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.chatRoomMessagesEndpoint(roomId)}'
+      '?page=$page&size=$size',
+    );
+    debugPrint('[ChatApi] fetchMessages uri=$uri');
+
+    final res = await http.get(uri, headers: _headers(token));
+
+    debugPrint('[ChatApi] fetchMessages status=${res.statusCode}');
+    debugPrint('[ChatApi] fetchMessages body=${utf8.decode(res.bodyBytes)}');
+
+    if (res.statusCode != 200) {
+      throw Exception('메시지 목록 조회 실패 (${res.statusCode})');
+    }
+
+    final body = json.decode(utf8.decode(res.bodyBytes));
+    if (body['success'] != true || body['data'] == null) {
+      throw Exception('메시지 응답 형식이 올바르지 않습니다.');
+    }
+
+    final List<dynamic> list = body['data']['content'] ?? [];
+    return list
+        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

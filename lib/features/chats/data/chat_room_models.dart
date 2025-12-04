@@ -1,40 +1,7 @@
 // lib/features/chats/data/chat_room_models.dart
+import 'package:flutter/foundation.dart';
 
-/// 공통으로 쓰는 DateTime 파서
-/// - String "2025-12-04T11:20:30" 도 받고
-/// - [2025, 12, 4, 11, 20, 30] 이런 배열도 받게 처리
-DateTime? _parseDateTime(dynamic raw) {
-  if (raw == null) return null;
-
-  // 문자열 ISO 포맷
-  if (raw is String) {
-    try {
-      return DateTime.parse(raw);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // 스프링 LocalDateTime 배열 [yyyy, MM, dd, HH, mm, ss(, nano)]
-  if (raw is List && raw.length >= 3) {
-    try {
-      final year = raw[0] as int;
-      final month = raw[1] as int;
-      final day = raw[2] as int;
-      final hour = raw.length > 3 ? raw[3] as int : 0;
-      final minute = raw.length > 4 ? raw[4] as int : 0;
-      final second = raw.length > 5 ? raw[5] as int : 0;
-
-      return DateTime(year, month, day, hour, minute, second);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  return null;
-}
-
-/// 채팅방 목록 한 줄 정보
+/// 채팅방 요약 정보
 class ChatRoomSummary {
   final int roomId;
   final String roomName;
@@ -49,31 +16,44 @@ class ChatRoomSummary {
     required this.roomType,
     required this.unreadCount,
     required this.lastMessagePreview,
-    this.lastMessageAt,
+    required this.lastMessageAt,
   });
 
   factory ChatRoomSummary.fromJson(Map<String, dynamic> json) {
+    // roomType / chatRoomType 둘 다 올 수 있어서 둘 다 처리
+    final dynamic typeRaw = json['roomType'] ?? json['chatRoomType'] ?? 'DIRECT';
+
+    // lastMessagePreview 가 null 이거나 List 로 올 수도 있어서 방어코드
+    final dynamic previewRaw = json['lastMessagePreview'];
+    final String preview = previewRaw == null
+        ? ''
+        : (previewRaw is String ? previewRaw : previewRaw.toString());
+
+    // unreadCount 도 혹시 String 으로 올 수도 있으니 방어
+    final dynamic unreadRaw = json['unreadCount'];
+    final int unread = unreadRaw is int
+        ? unreadRaw
+        : int.tryParse(unreadRaw?.toString() ?? '0') ?? 0;
+
     return ChatRoomSummary(
       roomId: json['roomId'] as int,
       roomName: (json['roomName'] as String?) ?? '',
-      // 백엔드에서 chatRoomType 으로 줄 수도 있어서 둘 다 대응
-      roomType:
-          (json['roomType'] as String?) ?? (json['chatRoomType'] as String?) ?? 'DIRECT',
-      unreadCount: (json['unreadCount'] as int?) ?? 0,
-      lastMessagePreview: (json['lastMessagePreview'] as String?) ?? '',
+      roomType: typeRaw as String,
+      unreadCount: unread,
+      lastMessagePreview: preview,
       lastMessageAt: _parseDateTime(json['lastMessageAt']),
     );
   }
 }
 
-/// 채팅방 내 메시지 한 개
+/// 채팅 메시지
 class ChatMessage {
   final int messageId;
   final int roomId;
   final int senderId;
   final String senderNickname;
   final String content;
-  final String contentType; // TEXT, IMAGE 등
+  final String contentType; // TEXT 등
   final DateTime? createdAt;
   final int unreadCount;
 
@@ -89,6 +69,11 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    final dynamic unreadRaw = json['unreadCount'];
+    final int unread = unreadRaw is int
+        ? unreadRaw
+        : int.tryParse(unreadRaw?.toString() ?? '0') ?? 0;
+
     return ChatMessage(
       messageId: json['messageId'] as int,
       roomId: json['roomId'] as int,
@@ -97,7 +82,42 @@ class ChatMessage {
       content: (json['content'] as String?) ?? '',
       contentType: (json['contentType'] as String?) ?? 'TEXT',
       createdAt: _parseDateTime(json['createdAt']),
-      unreadCount: (json['unreadCount'] as int?) ?? 0,
+      unreadCount: unread,
     );
   }
+}
+
+/// Java LocalDateTime 배열 / ISO 문자열 / epoch 등 다 받아주는 공통 파서
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+
+  try {
+    // 1) [2025, 12, 3, 10, 42, 25] 같이 배열로 오는 경우
+    if (value is List) {
+      if (value.length >= 5) {
+        return DateTime(
+          (value[0] as num).toInt(), // year
+          (value[1] as num).toInt(), // month
+          (value[2] as num).toInt(), // day
+          (value[3] as num).toInt(), // hour
+          (value[4] as num).toInt(), // minute
+          value.length > 5 ? (value[5] as num).toInt() : 0, // second
+        );
+      }
+    }
+
+    // 2) ISO 문자열 "2025-12-03T10:42:25" 같은 경우
+    if (value is String) {
+      return DateTime.parse(value);
+    }
+
+    // 3) epoch millis 로 오는 경우
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+  } catch (e) {
+    debugPrint('[ChatModels] _parseDateTime error: $e, value=$value');
+  }
+
+  return null;
 }

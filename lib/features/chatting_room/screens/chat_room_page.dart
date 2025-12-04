@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../chats/data/chat_api.dart';
 import '../../chats/data/chat_room_models.dart';
-import '../data/chat_socket_service.dart';
 import '../widgets/message_input_bar.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -16,7 +15,6 @@ class ChatRoomPage extends StatefulWidget {
 
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final ChatApi _api = ChatApi();
-  ChatSocketService? _socket;
 
   String _title = '채팅방';
   int? _roomId;
@@ -69,9 +67,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         _myUserId = myId;
         _messages = msgs;
       });
-
-      // ✅ REST로 기존 메시지 불러온 다음 WebSocket 연결
-      await _initSocket();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -85,48 +80,37 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
-  Future<void> _initSocket() async {
-    if (_roomId == null) return;
-
-    _socket ??= ChatSocketService(
-      onMessage: (ChatMessage msg) {
-        if (!mounted) return;
-        // 혹시 다른 방 메시지가 날아오면 무시
-        if (msg.roomId != _roomId) return;
-        setState(() {
-          _messages.add(msg);
-        });
-      },
-      onError: (err) {
-        debugPrint('[ChatRoomPage] socket error: $err');
-      },
-    );
-
-    await _socket!.connectAndSubscribe(_roomId!);
-  }
-
-  /// 📨 전송 버튼 눌렀을 때 (실제 서버로 보내기)
+  /// 📨 전송 버튼 눌렀을 때 - 로컬에만 추가 (웹소켓 붙이기 전)
   void _handleSendMessage(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
-    if (_roomId == null) {
+    if (_myUserId == null || _roomId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('roomId가 없습니다.')),
+        const SnackBar(
+          content: Text('채팅방 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.'),
+        ),
       );
       return;
     }
 
-    if (_socket == null || !_socket!.isConnected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('채팅 서버에 연결 중입니다. 잠시 후 다시 시도해주세요.')),
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          // 서버에 아직 안보낸 로컬 메시지라 음수 id 사용
+          messageId: -DateTime.now().millisecondsSinceEpoch,
+          roomId: _roomId!,
+          senderId: _myUserId!,
+          senderNickname: '나', // 나중에 내 닉네임으로 교체 가능
+          content: trimmed,
+          contentType: 'TEXT',
+          createdAt: DateTime.now(),
+          unreadCount: 0,
+        ),
       );
-      return;
-    }
+    });
 
-    // ✅ 실제 서버로 STOMP 전송 → 서버가 저장 → 브로드캐스트 →
-    //    onMessage에서 _messages에 추가됨
-    _socket!.sendText(_roomId!, trimmed);
+    // TODO: 다음 단계에서 STOMP/WebSocket으로 실제 서버 전송 붙이기
   }
 
   String _formatTime(DateTime? dt) {
@@ -137,12 +121,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     final period = isAm ? '오전' : '오후';
     return '$period $h12:$minute';
-  }
-
-  @override
-  void dispose() {
-    _socket?.dispose();
-    super.dispose();
   }
 
   @override
@@ -236,43 +214,45 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         final msg = _messages[index];
         final isMe = (_myUserId != null && msg.senderId == _myUserId);
 
-        // 나중에 상대 프로필 URL 생기면 여기 avatarUrl에 넣어주면 됨
         return _MessageBubble(
           text: msg.content,
           time: _formatTime(msg.createdAt),
           isMe: isMe,
-          avatarUrl: null,
+          nickname: msg.senderNickname,
+          // 나중에 상대 프로필 URL 넣고 싶으면 여기 avatarUrl 채우면 됨
+          // avatarUrl: isMe ? null : friendProfileImageUrl,
         );
       },
     );
   }
 }
 
-/// 말풍선 위젯 (카톡 느낌: 내 메시지 노란색, 상대 회색 + 프로필 + 시간 위치)
+/// 말풍선 위젯
 class _MessageBubble extends StatelessWidget {
   final String text;
   final String time;
   final bool isMe;
+  final String nickname;
   final String? avatarUrl;
 
   const _MessageBubble({
     required this.text,
     required this.time,
     required this.isMe,
+    required this.nickname,
     this.avatarUrl,
   });
 
   @override
   Widget build(BuildContext context) {
     if (isMe) {
-      // 내가 보낸 메시지: 오른쪽 정렬 + 노란 말풍선 + 시간은 왼쪽
+      // 👤 내가 보낸 메시지
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // 시간 (왼쪽)
             Text(
               time,
               style: TextStyle(
@@ -281,13 +261,12 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            // 말풍선
             Flexible(
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFE400), // 카톡 노란색
+                  color: Color(0xFFFFE400),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
@@ -308,64 +287,88 @@ class _MessageBubble extends StatelessWidget {
         ),
       );
     } else {
-      // 상대가 보낸 메시지: 왼쪽에 프로필, 그 옆 회색 말풍선, 오른쪽에 시간
+      // 👤 상대가 보낸 메시지
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 아바타
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFF44474C),
-              backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                  ? NetworkImage(avatarUrl!)
-                  : null,
+            // ✅ 둥근 사각형 아바타
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF44474C),
+                borderRadius: BorderRadius.circular(15),
+                image: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                    ? DecorationImage(
+                        image: NetworkImage(avatarUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
               child: (avatarUrl == null || avatarUrl!.isEmpty)
                   ? const Icon(
                       Icons.person,
                       color: Colors.white,
-                      size: 16,
+                      size: 22,
                     )
                   : null,
             ),
             const SizedBox(width: 8),
-            // 말풍선 + 시간
-            Flexible(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            // 닉네임 + 말풍선 + 시간
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2A2A2A), // 회색
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                          bottomLeft: Radius.circular(4),
-                          bottomRight: Radius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        text,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
+                  // ✅ 닉네임 색을 더 밝게
+                  Text(
+                    nickname,
+                    style: const TextStyle(
+                      color: Color(0xFFF5F5F5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 10,
-                    ),
+                  const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // 말풍선
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.only(
+                              // ✅ 꼬다리를 좌측 *상단*으로
+                              topLeft: Radius.circular(4),   // ← 꼬다리 느낌
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(16),
+                              bottomRight: Radius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            text,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -376,3 +379,5 @@ class _MessageBubble extends StatelessWidget {
     }
   }
 }
+
+

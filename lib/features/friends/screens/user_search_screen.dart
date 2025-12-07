@@ -70,13 +70,11 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         'Accept': 'application/json',
       };
 
-      final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.userLookupEndpoint}')
-          .replace(queryParameters: {'username': query});
+      final uri = Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.friendListEndpoint}',
+      ).replace(queryParameters: {'nickname': query});
 
-      final response = await http.get(
-        uri,
-        headers: headers,
-      );
+      final response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 200) {
         final body = json.decode(utf8.decode(response.bodyBytes));
@@ -88,7 +86,9 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
           }
         });
       } else {
-        throw Exception('사용자 검색에 실패했습니다. 상태 코드: ${response.statusCode}, 응답: ${response.body}');
+        throw Exception(
+          '친구 검색에 실패했습니다. 상태 코드: ${response.statusCode}, 응답: ${response.body}',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -97,13 +97,14 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         _message = '오류 발생: $_error'; // Update message to show error
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,7 +115,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
           controller: _searchController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: '이름 또는 ID로 검색',
+            hintText: '친구 이름으로 검색',
             hintStyle: TextStyle(color: Colors.white54),
             border: InputBorder.none,
           ),
@@ -131,10 +132,14 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(child: Text('오류: $_error', style: const TextStyle(color: Colors.red)));
+      return Center(
+        child: Text('오류: $_error', style: const TextStyle(color: Colors.red)),
+      );
     }
     if (_searchResults.isEmpty) {
-      return Center(child: Text(_message, style: const TextStyle(color: Colors.white54)));
+      return Center(
+        child: Text(_message, style: const TextStyle(color: Colors.white54)),
+      );
     }
 
     return ListView.builder(
@@ -142,9 +147,17 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       itemBuilder: (context, index) {
         final user = _searchResults[index];
         return ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.person)), // Placeholder for profile image
-          title: Text(user['nickname'] ?? '이름 없음', style: const TextStyle(color: Colors.white)),
-          subtitle: Text(user['statusMessage'] ?? '', style: const TextStyle(color: Colors.white70)),
+          leading: const CircleAvatar(
+            child: Icon(Icons.person),
+          ), // Placeholder for profile image
+          title: Text(
+            user['nickname'] ?? '이름 없음',
+            style: const TextStyle(color: Colors.white),
+          ),
+          subtitle: Text(
+            user['statusMessage'] ?? '',
+            style: const TextStyle(color: Colors.white70),
+          ),
           onTap: () {
             Navigator.push(
               context,

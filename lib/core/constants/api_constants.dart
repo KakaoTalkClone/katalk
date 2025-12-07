@@ -7,7 +7,9 @@ class ApiConstants {
   static String friendByIdEndpoint(int userId) => '/api/friend/$userId';
   static const String friendListEndpoint = '/api/friend';
   static const String addFriendByUsernameEndpoint = '/api/friend/username';
+  static const String addFriendByPhoneEndpoint = '/api/friend/phone';
   static const String userSearchEndpoint = '/api/user/search';
+  static const String userLookupEndpoint = '/api/user';
   static const String chatRoomsEndpoint = '/api/chat/rooms';
 
   // 채팅방 메시지 목록

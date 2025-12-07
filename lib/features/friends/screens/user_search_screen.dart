@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
+import 'friend_profile_screen.dart';
 
 class UserSearchScreen extends StatefulWidget {
   const UserSearchScreen({super.key});
@@ -69,10 +70,12 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         'Accept': 'application/json',
       };
 
-      final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.userSearchEndpoint}'),
+      final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.userLookupEndpoint}')
+          .replace(queryParameters: {'username': query});
+
+      final response = await http.get(
+        uri,
         headers: headers,
-        body: json.encode({'q': query, 'page': 0, 'size': 20}),
       );
 
       if (response.statusCode == 200) {
@@ -85,12 +88,13 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
           }
         });
       } else {
-        throw Exception('사용자 검색에 실패했습니다.');
+        throw Exception('사용자 검색에 실패했습니다. 상태 코드: ${response.statusCode}, 응답: ${response.body}');
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
+        _message = '오류 발생: $_error'; // Update message to show error
       });
     } finally {
       if (!mounted) return;
@@ -100,49 +104,6 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
     }
   }
   
-  Future<void> _addFriend(String username) async {
-    // This is copied from friends_screen, can be refactored into a service later.
-    try {
-      const storage = FlutterSecureStorage();
-      final token = await storage.read(key: 'jwt_token');
-      if (token == null) throw Exception('로그인 토큰을 찾을 수 없습니다.');
-
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
-
-      final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.addFriendByUsernameEndpoint}'),
-        headers: headers,
-        body: json.encode({'username': username}),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-        if (responseData['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("친구 '${username}'가 성공적으로 추가되었습니다.")),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('친구 추가 실패: ${responseData['message'] ?? '알 수 없는 오류'}')),
-          );
-        }
-      } else {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('서버 오류 (${response.statusCode}): ${response.body}')),
-        );
-      }
-    } catch (e) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('네트워크 오류: $e')),
-      );
-    }
-  }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,15 +144,18 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         return ListTile(
           leading: const CircleAvatar(child: Icon(Icons.person)), // Placeholder for profile image
           title: Text(user['nickname'] ?? '이름 없음', style: const TextStyle(color: Colors.white)),
-          subtitle: Text(user['email'] ?? '', style: const TextStyle(color: Colors.white70)),
-          trailing: ElevatedButton(
-            onPressed: () {
-              // Note: The add friend API uses 'username', but search result provides 'nickname' and 'email'.
-              // Assuming 'email' can be used as 'username' for adding. This may need clarification.
-              _addFriend(user['email']); 
-            },
-            child: const Text('추가'),
-          ),
+          subtitle: Text(user['statusMessage'] ?? '', style: const TextStyle(color: Colors.white70)),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FriendProfileScreen(
+                  isMyProfile: false, // Searched users are not the current user
+                  friendData: user,
+                ),
+              ),
+            );
+          },
         );
       },
     );

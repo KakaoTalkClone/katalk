@@ -100,6 +100,7 @@ class _ChatsPageState extends State<ChatsPage> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: AppColors.bg,
         surfaceTintColor: Colors.transparent,
         title: const Text(
@@ -149,13 +150,6 @@ class _ChatsPageState extends State<ChatsPage> {
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
           gap,
-          IconButton(
-            onPressed: _loadRooms,
-            tooltip: '새로고침',
-            icon: const Icon(Icons.refresh, color: AppColors.text),
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          ),
           const SizedBox(width: 6),
         ],
       ),

@@ -1,6 +1,6 @@
-// lib/app.dart
 import 'package:flutter/material.dart';
 import 'core/app_router.dart';
+import 'main.dart'; // navigatorKey import
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -8,6 +8,7 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // [추가] 여기에 키 등록 필수!
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

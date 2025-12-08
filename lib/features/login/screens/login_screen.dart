@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/fcm/fcm_service.dart'; // [추가]
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -56,6 +57,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final String? accessToken = responseData['data']['access'];
           if (accessToken != null) {
             await _storage.write(key: 'jwt_token', value: accessToken);
+            
+            // ▼▼▼ [추가] 로그인 성공 시 FCM 토큰 서버로 전송
+            // (비동기로 실행되므로 await 안 해도 화면 전환에 지장 없음)
+            FcmService.instance.initialize(); 
+            
             // Navigate to main tabs
             Navigator.of(context).pushReplacementNamed('/');
           } else {

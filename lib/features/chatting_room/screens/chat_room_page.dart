@@ -1,4 +1,3 @@
-// lib/features/chatting_room/screens/chat_room_page.dart
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -6,6 +5,7 @@ import '../../chats/data/chat_api.dart';
 import '../../chats/data/chat_room_models.dart';
 import '../data/chat_socket_service.dart';
 import '../widgets/message_input_bar.dart';
+import '../../../core/chat/current_chat_tracker.dart'; // [추가]
 
 class ChatRoomPage extends StatefulWidget {
   const ChatRoomPage({super.key});
@@ -48,6 +48,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     _title = (args?['title'] as String?) ?? '채팅방';
     _roomId = args?['roomId'] as int?;
     _roomType = (args?['roomType'] as String?) ?? 'DIRECT';
+
+    // ▼▼▼ [추가] 현재 채팅방 ID 등록 ▼▼▼
+    if (_roomId != null) {
+      CurrentChatTracker.instance.enterRoom(_roomId!);
+    }
 
     _loadInitial();
   }
@@ -202,6 +207,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   void dispose() {
+    // ▼▼▼ [추가] 채팅방 나가면 ID 제거 ▼▼▼
+    CurrentChatTracker.instance.exitRoom();
+    
     _socketService?.dispose();
     _socketService = null;
     _scrollController.dispose();
@@ -458,3 +466,4 @@ class _MessageBubble extends StatelessWidget {
     }
   }
 }
+

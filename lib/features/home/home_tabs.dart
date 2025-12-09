@@ -3,7 +3,8 @@ import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/k_bottom_nav.dart';
 import '../friends/screens/friends_screen.dart';
 import '../chats/screens/chats_page.dart';
-import '../login/screens/login_screen.dart'; // New import for LoginScreen
+import '../login/screens/login_screen.dart';
+import '../../core/chat/chat_friend_service.dart'; // [추가]
 
 class HomeTabs extends StatefulWidget {
   const HomeTabs({super.key});
@@ -16,6 +17,18 @@ class _HomeTabsState extends State<HomeTabs> {
   // 0: 친구, 1: 채팅, 2: 오픈채팅(placeholder), 3: 쇼핑(placeholder), 4: 더보기(placeholder)
   int _index = 1; // 시작을 채팅으로
   late final PageController _pc = PageController(initialPage: _index);
+
+  @override
+  void initState() {
+    super.initState();
+    // [추가] 앱 시작 시(자동 로그인) 친구 목록 캐싱
+    _initCache();
+  }
+
+  Future<void> _initCache() async {
+    // 친구 목록을 불러와서 캐시에 저장 (알림 프로필 사진용)
+    await ChatFriendService.instance.loadFriendsToCache();
+  }
 
   void _onTap(int i) {
     if (i == _index) return;

@@ -29,3 +29,4 @@ class ApiConstants {
   static String chatLeaveEndpoint(int roomId) =>
       '/api/chat/rooms/$roomId/leave';
 }
+

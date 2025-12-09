@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/chat/chat_friend_cache.dart'; // [추가]
 import 'package:my_app/features/friends/widgets/add_friend_sheet.dart';
 import 'friend_profile_screen.dart';
 
@@ -88,6 +89,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
         final friendsBody = json.decode(utf8.decode(friendsResponse.bodyBytes));
         if (friendsBody['success'] == true && friendsBody['data'] != null) {
           _friends = friendsBody['data']['content'] ?? [];
+
+          // ▼▼▼ [추가] 화면 목록 갱신하면서 캐시도 업데이트 (중요!) ▼▼▼
+          final cacheMap = <String, String>{};
+          for (var f in _friends) {
+            final nick = f['nickname'] as String?;
+            final url = f['profileImageUrl'] as String?;
+            if (nick != null && nick.isNotEmpty && url != null && url.isNotEmpty) {
+              cacheMap[nick] = url;
+            }
+          }
+          // 기존 캐시에 덮어씌우기 (addAll은 키가 같으면 값을 업데이트함)
+          ChatFriendCache.instance.nicknameToAvatar.addAll(cacheMap);
+
         } else {
           throw Exception('친구 목록 데이터가 비어있습니다.');
         }

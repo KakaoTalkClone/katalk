@@ -4,7 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/fcm/fcm_service.dart'; // [추가]
+import '../../../../core/fcm/fcm_service.dart'; 
+import '../../../../core/chat/chat_friend_service.dart'; // [추가]
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,11 +59,14 @@ class _LoginScreenState extends State<LoginScreen> {
           if (accessToken != null) {
             await _storage.write(key: 'jwt_token', value: accessToken);
             
-            // ▼▼▼ [추가] 로그인 성공 시 FCM 토큰 서버로 전송
-            // (비동기로 실행되므로 await 안 해도 화면 전환에 지장 없음)
-            FcmService.instance.initialize(); 
+            // 1. FCM 서비스: 토큰만 갱신 (중복 리스너 등록 방지)
+            await FcmService.instance.syncTokenOnly(); 
+
+            // 2. [추가] 친구 목록 미리 로딩 (프로필 이미지 캐싱용)
+            await ChatFriendService.instance.loadFriendsToCache();
             
             // Navigate to main tabs
+            if (!mounted) return;
             Navigator.of(context).pushReplacementNamed('/');
           } else {
             ScaffoldMessenger.of(context).showSnackBar(

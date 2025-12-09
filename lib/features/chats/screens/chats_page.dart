@@ -7,6 +7,7 @@ import '../data/chat_room_models.dart';
 import '../data/chat_rooms_socket_service.dart';
 import '../widgets/chat_list_item.dart';
 import '../widgets/new_chat_sheet.dart';
+import '../../../core/chat/chat_friend_cache.dart'; // [추가]
 
 class ChatsPage extends StatefulWidget {
   const ChatsPage({super.key});
@@ -50,6 +51,10 @@ class _ChatsPageState extends State<ChatsPage> {
     // 가장 안전한 방식: 그냥 목록 다시 조회
     try {
       final rooms = await _api.fetchMyChatRooms(page: 1, size: 20);
+      
+      // [호출] 웹소켓 업데이트 시 캐시도 재확인
+      _updateCacheFromRooms(rooms);
+
       if (!mounted) return;
       setState(() {
         _rooms = rooms;
@@ -67,6 +72,10 @@ class _ChatsPageState extends State<ChatsPage> {
 
     try {
       final rooms = await _api.fetchMyChatRooms(page: 1, size: 20);
+      
+      // [호출] 초기 로드 시 캐시 업데이트
+      _updateCacheFromRooms(rooms);
+
       setState(() {
         _rooms = rooms;
       });
@@ -81,6 +90,23 @@ class _ChatsPageState extends State<ChatsPage> {
         });
       }
     }
+  }
+
+  /// [신규 로직] 채팅방 목록에서 닉네임과 썸네일 URL을 추출하여 캐시에 저장
+  void _updateCacheFromRooms(List<ChatRoomSummary> rooms) {
+      final cacheUpdates = <String, String>{};
+      for (var room in rooms) {
+        // DIRECT 채팅방이고, 썸네일 URL과 방 이름(닉네임)이 있을 경우 캐싱
+        if (room.roomType == 'DIRECT' && 
+            room.thumbnailUrl != null && 
+            room.thumbnailUrl!.isNotEmpty && 
+            room.roomName.isNotEmpty) {
+          // NOTE: roomName을 상대방 닉네임으로 가정하고 캐시 키로 사용
+          cacheUpdates[room.roomName] = room.thumbnailUrl!;
+        }
+      }
+      ChatFriendCache.instance.nicknameToAvatar.addAll(cacheUpdates);
+      debugPrint('[ChatCache] 캐시 업데이트 됨. 채팅방 목록 기반으로 ${cacheUpdates.length}개 추가.');
   }
 
   String _formatTime(DateTime? dt) {

@@ -142,33 +142,98 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       );
     }
 
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       itemCount: _searchResults.length,
+      separatorBuilder: (context, index) => const Divider(
+        color: AppColors.grey1, // 구분선 색상 (조절 가능)
+        height: 1,
+        indent: 70, // 프로필 이미지 너비 + 여백만큼 들여쓰기
+        endIndent: 16,
+      ),
       itemBuilder: (context, index) {
         final user = _searchResults[index];
-        return ListTile(
-          leading: const CircleAvatar(
-            child: Icon(Icons.person),
-          ), // Placeholder for profile image
-          title: Text(
-            user['nickname'] ?? '이름 없음',
-            style: const TextStyle(color: Colors.white),
-          ),
-          subtitle: Text(
-            user['statusMessage'] ?? '',
-            style: const TextStyle(color: Colors.white70),
-          ),
+        final profileImageUrl = user['profileImageUrl'] as String?;
+        final nickname = user['nickname'] ?? '이름 없음';
+        final statusMessage = user['statusMessage'] as String?;
+
+        return InkWell(
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => FriendProfileScreen(
-                  isMyProfile: false, // Searched users are not the current user
-                  friendData: user,
-                ),
+                builder: (context) =>
+                    FriendProfileScreen(isMyProfile: false, friendData: user),
               ),
             );
           },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                // 프로필 이미지
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20), // 둥근 정도 (원형에 가깝게)
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    color: AppColors.grey1, // 이미지 로딩 전 배경색
+                    child:
+                        (profileImageUrl != null && profileImageUrl.isNotEmpty)
+                        ? Image.network(
+                            profileImageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.person,
+                                color: AppColors.grey2,
+                                size: 24,
+                              );
+                            },
+                          )
+                        : const Icon(
+                            Icons.person,
+                            color: AppColors.grey2,
+                            size: 24,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // 텍스트 정보 (이름 + 상태메시지)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        nickname,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (statusMessage != null &&
+                          statusMessage.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          statusMessage,
+                          style: const TextStyle(
+                            color: AppColors.grey2,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

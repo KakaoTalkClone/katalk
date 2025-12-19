@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "Pixel Emulator",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "emulator-5554" // 실제 기기 ID로 변경
+    },
+    {
+      "name": "iPhone Simulator",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "XXXX-XXXX-XXXX" // 실제 기기 ID로 변경
+    }
+  ],
+  "compounds": [
+    {
+      "name": "All Devices",
+      "configurations": ["Pixel Emulator", "iPhone Simulator"]
+    }
+  ]
+}
